@@ -726,6 +726,7 @@ function openBox(type) {
     
     if (canOpen) {
         gameState.openedBoxes++;
+        
        // Проверка задания на открытие премиум-кейса
         if (type === 'premium' && gameState.taskProgress.task2 === 0) {
             gameState.taskProgress.task2 = 1;
