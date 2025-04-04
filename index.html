@@ -288,5 +288,45 @@
 
     <!-- Подключение скриптов -->
     <script src="script.js"></script>
+    <script>
+    // Быстрое исправление для меню
+    document.addEventListener('DOMContentLoaded', function() {
+        // Скрываем все разделы
+        document.querySelectorAll('[id$="-section"]').forEach(function(section) {
+            section.style.display = 'none';
+        });
+        
+        // Показываем только секцию заданий по умолчанию
+        var taskSection = document.getElementById('tasks-section');
+        if (taskSection) {
+            taskSection.style.display = 'block';
+        }
+        
+        // Добавляем обработчики к пунктам меню
+        document.querySelectorAll('.menu-item').forEach(function(item) {
+            item.addEventListener('click', function() {
+                var sectionId = this.getAttribute('data-section');
+                if (sectionId) {
+                    // Скрываем все разделы
+                    document.querySelectorAll('[id$="-section"]').forEach(function(section) {
+                        section.style.display = 'none';
+                    });
+                    
+                    // Показываем выбранный раздел
+                    var targetSection = document.getElementById(sectionId);
+                    if (targetSection) {
+                        targetSection.style.display = 'block';
+                    }
+                    
+                    // Обновляем активный пункт меню
+                    document.querySelectorAll('.menu-item').forEach(function(menuItem) {
+                        menuItem.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                }
+            });
+        });
+    });
+</script>
 </body>
 </html>
