@@ -1126,12 +1126,12 @@ function updateTaskProgressUI(taskId, current, total) {
 function domElementExists(id) {
     return document.getElementById(id) !== null;
 }
-
 // Показать секцию
 function showSection(sectionId) {
     console.log("Переключение на секцию:", sectionId);
     
     try {
+        // Список всех возможных секций
         const sections = [
             'tasks-section',
             'boxes-section',
@@ -1144,28 +1144,41 @@ function showSection(sectionId) {
         const targetSection = document.getElementById(sectionId);
         if (!targetSection) {
             console.warn(`Секция ${sectionId} не найдена`);
-            // Если секция не найдена, покажем хотя бы секцию заданий
-            const tasksSection = document.getElementById('tasks-section');
-            if (tasksSection) {
-                sectionId = 'tasks-section';
-                targetSection = tasksSection;
-            } else {
-                return; // Если и секция заданий не найдена, просто выходим
+            
+            // Если секция не найдена, показываем первую доступную секцию
+            let fallbackSection = null;
+            for (const section of sections) {
+                const sectionElement = document.getElementById(section);
+                if (sectionElement) {
+                    fallbackSection = sectionElement;
+                    sectionId = section;
+                    break;
+                }
+            }
+            
+            if (!fallbackSection) {
+                showErrorPopup("Не найдены секции для отображения!");
+                return;
             }
         }
         
-        // Скрываем все секции
-        sections.forEach(section => {
+        // Принудительно скрываем все секции
+        for (const section of sections) {
             const sectionElement = document.getElementById(section);
             if (sectionElement) {
+                sectionElement.style.display = 'none';
                 sectionElement.classList.add('hidden-section');
                 sectionElement.classList.remove('active-section');
             }
-        });
+        }
         
-        // Показываем нужную секцию
-        targetSection.classList.remove('hidden-section');
-        targetSection.classList.add('active-section');
+        // Принудительно показываем выбранную секцию и применяем классы
+        const sectionToShow = document.getElementById(sectionId);
+        if (sectionToShow) {
+            sectionToShow.style.display = 'block';
+            sectionToShow.classList.remove('hidden-section');
+            sectionToShow.classList.add('active-section');
+        }
         
         // Обновляем активный пункт меню
         const menuItems = document.querySelectorAll('.menu-item');
@@ -1173,7 +1186,7 @@ function showSection(sectionId) {
             item.classList.remove('active');
         });
         
-        // Находим кнопку, связанную с этой секцией
+        // Находим кнопку, связанную с этой секцией и активируем ее
         const clickedButton = Array.from(menuItems).find(item => {
             return item.getAttribute('data-section') === sectionId;
         });
@@ -1183,26 +1196,19 @@ function showSection(sectionId) {
         }
     } catch (error) {
         console.error("Ошибка при переключении секции:", error);
-        // Если произошла ошибка, делаем простую попытку показать хоть что-то
-        try {
-            const sections = document.querySelectorAll('.hidden-section, .active-section');
-            sections.forEach(s => {
-                s.classList.add('hidden-section');
-                s.classList.remove('active-section');
-            });
-            
-            const fallbackSection = document.getElementById('tasks-section') || 
-                                  document.querySelector('[id$="-section"]');
-            if (fallbackSection) {
-                fallbackSection.classList.remove('hidden-section');
-                fallbackSection.classList.add('active-section');
-            }
-        } catch(e) {
-            console.error("Критическая ошибка при попытке показать запасную секцию", e);
+        
+        // В случае ошибки просто покажем что-нибудь
+        const sections = document.querySelectorAll('[id$="-section"]');
+        sections.forEach(section => {
+            section.style.display = 'none';
+        });
+        
+        const firstSection = document.querySelector('[id$="-section"]');
+        if (firstSection) {
+            firstSection.style.display = 'block';
         }
     }
 }
-
 // Выполнение задания
 function completeTask(taskId) {
     console.log("Выполнение задания:", taskId);
