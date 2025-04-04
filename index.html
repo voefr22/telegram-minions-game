@@ -4,116 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minions - Telegram WebApp</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="icon" href="https://i.imgur.com/NSrR5EC.png" type="image/png">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Экран загрузки -->
     <div class="splash" id="splash-screen">
         <div class="splash-minion"></div>
         <h1>Minions</h1>
         <div class="loading-indicator">
             <div class="loading-spinner"></div>
-            <p>Загрузка...</p>
+            <p>Загрузка игры...</p>
         </div>
     </div>
 
-    <!-- Всплывающее сообщение -->
-    <div id="popup-message"></div>
-
-    <!-- Контейнер для конфетти -->
-    <div id="confetti-container"></div>
-
-    <!-- Ежедневная награда -->
-    <div id="daily-reward-container" class="daily-reward tip-button" data-tip="daily">
-        <div class="daily-reward-title">Ежедневная награда</div>
-        <div class="daily-reward-box" id="daily-reward-btn">
-            <span style="font-size: 30px;">🎁</span>
-        </div>
-        <div class="daily-streak">Серия: <span id="streak-count">0</span> дней</div>
-    </div>
-
-    <!-- Анимация повышения уровня -->
-    <div id="level-up-container">
-        <span>Новый уровень: </span>
-        <span id="new-level"></span>
-    </div>
-
-    <!-- Анимация открытия бокса -->
-    <div id="box-animation-container">
-        <img id="box-image" src="" alt="Box">
-        <span id="box-reward"></span>
-    </div>
-
-    <!-- Всплывающее окно награды -->
-    <div class="popup" id="reward-popup">
-        <div class="popup-content">
-            <h2>Награда!</h2>
-            <div class="reward-animation" id="reward-animation">🎁</div>
-            <p id="reward-text">Вы получили награду!</p>
-            <button onclick="closePopup()" class="action-button">Круто!</button>
-        </div>
-    </div>
-
-    <!-- Уведомление о достижении -->
-    <div class="achievement-notification" id="achievement-notification">
-        <h4>Новое достижение!</h4>
-        <p id="achievement-text"></p>
-    </div>
-
-    <!-- Мини-игра -->
-    <div id="mini-game-container" class="mini-game-container">
-        <div class="mini-game-content">
-            <h3>Мини-игра с миньонами</h3>
-            <p id="mini-game-instruction">Найдите особенного миньона!</p>
-            <div id="mini-game-field" class="mini-game-field"></div>
-            <button id="close-mini-game" class="action-button">Закрыть</button>
-        </div>
-    </div>
-
-    <!-- Заголовок -->
     <div class="header">
         <h1>Minions</h1>
-        <span id="user-name">Игрок</span>
-        <div class="big-minion" id="interactive-minion"></div>
+        <div class="big-minion"></div>
     </div>
 
-    <!-- Основной контейнер -->
     <div class="container">
-        <!-- Статистика -->
         <div class="stats">
             <div class="stats-item tip-button" data-tip="bananas">
-                <img src="https://i.imgur.com/NSrR5EC.png" alt="Banana" width="30" height="30">
+                <img src="https://i.imgur.com/NSrR5EC.png" alt="Banana icon" width="30" height="30">
                 <span id="bananas">0</span>
                 <span>Бананы</span>
             </div>
             <div class="stats-item tip-button" data-tip="stars">
-                <img src="https://i.imgur.com/v9nfCnG.png" alt="Star" width="30" height="30">
+                <img src="https://i.imgur.com/v9nfCnG.png" alt="Star icon" width="30" height="30">
                 <span id="stars">0</span>
                 <span>Звезды</span>
             </div>
             <div class="stats-item tip-button" data-tip="level">
-                <img src="https://i.imgur.com/hkzYK6m.png" alt="Level" width="30" height="30">
+                <img src="https://i.imgur.com/hkzYK6m.png" alt="Level icon" width="30" height="30">
                 <span id="level">1</span>
                 <span>Уровень</span>
-                <div class="progress-bar">
-                    <div id="level-progress"></div>
-                    <span id="level-counter">0/100</span>
-                </div>
             </div>
         </div>
 
-        <!-- Секция заданий -->
-        <div id="tasks-section" class="section active-section">
+        <div id="daily-reward-container" class="daily-reward tip-button" data-tip="daily">
+            <div class="daily-reward-title">Ежедневная награда!</div>
+            <div class="daily-reward-box" id="daily-reward-btn">
+                <span style="font-size: 30px;">🎁</span>
+            </div>
+            <div class="daily-streak">Дней подряд: <span id="streak-count">0</span></div>
+        </div>
+
+        <div id="tasks-section" class="active-section">
             <h2>Задания <span class="tip-button" data-tip="tasks">❓</span></h2>
             <div class="tasks">
                 <div class="task" onclick="completeTask(1)">
                     <div>
                         <h3>Пригласи 10 друзей</h3>
-                        <p>Приглашай друзей в игру</p>
+                        <p>Пригласи друзей в игру</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task1-progress"></div>
+                            <div class="progress" id="task1-progress" style="width: 0%"></div>
                         </div>
                         <span id="task1-counter">0/10</span>
                     </div>
@@ -122,9 +66,9 @@
                 <div class="task" onclick="completeTask(2)">
                     <div>
                         <h3>Открой премиум-кейс</h3>
-                        <p>Используй звезды</p>
+                        <p>Используй звезды для открытия кейса</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task2-progress"></div>
+                            <div class="progress" id="task2-progress" style="width: 0%"></div>
                         </div>
                         <span id="task2-counter">0/1</span>
                     </div>
@@ -133,9 +77,9 @@
                 <div class="task" onclick="completeTask(3)">
                     <div>
                         <h3>Накорми 5 миньонов</h3>
-                        <p>Раздай бананы</p>
+                        <p>Раздай бананы голодным миньонам</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task3-progress"></div>
+                            <div class="progress" id="task3-progress" style="width: 0%"></div>
                         </div>
                         <span id="task3-counter">0/5</span>
                     </div>
@@ -144,9 +88,9 @@
                 <div class="task" onclick="completeTask(4)">
                     <div>
                         <h3>Собери 30 бананов</h3>
-                        <p>Накопи бананы</p>
+                        <p>Накопи бананы для покупки кейсов</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task4-progress"></div>
+                            <div class="progress" id="task4-progress" style="width: 0%"></div>
                         </div>
                         <span id="task4-counter">0/30</span>
                     </div>
@@ -155,9 +99,9 @@
                 <div class="task" onclick="completeTask(5)">
                     <div>
                         <h3>Открой 5 боксов</h3>
-                        <p>Любого типа</p>
+                        <p>Открывай боксы любого типа</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task5-progress"></div>
+                            <div class="progress" id="task5-progress" style="width: 0%"></div>
                         </div>
                         <span id="task5-counter">0/5</span>
                     </div>
@@ -166,9 +110,9 @@
                 <div class="task" onclick="completeTask(6)">
                     <div>
                         <h3>Достигни 3 уровня</h3>
-                        <p>Собирай ресурсы</p>
+                        <p>Собирай ресурсы и повышай уровень</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task6-progress"></div>
+                            <div class="progress" id="task6-progress" style="width: 0%"></div>
                         </div>
                         <span id="task6-counter">0/3</span>
                     </div>
@@ -177,20 +121,20 @@
                 <div class="task" onclick="completeTask(7)">
                     <div>
                         <h3>Получи 5 достижений</h3>
-                        <p>Открывай достижения</p>
+                        <p>Открывай новые достижения</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task7-progress"></div>
+                            <div class="progress" id="task7-progress" style="width: 0%"></div>
                         </div>
                         <span id="task7-counter">0/5</span>
                     </div>
-                    <div class="task-reward">+50 🍌 +5 ⭐</div>
+                    <div class="task-reward">+50 🍌 и +5 ⭐</div>
                 </div>
                 <div class="task" onclick="completeTask(8)">
                     <div>
                         <h3>Серия входов 5 дней</h3>
-                        <p>Заходи каждый день</p>
+                        <p>Заходите в игру 5 дней подряд</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task8-progress"></div>
+                            <div class="progress" id="task8-progress" style="width: 0%"></div>
                         </div>
                         <span id="task8-counter">0/5</span>
                     </div>
@@ -199,9 +143,9 @@
                 <div class="task" onclick="completeTask(9)">
                     <div>
                         <h3>Собери 100 бананов</h3>
-                        <p>Большой запас</p>
+                        <p>Накопи большой запас бананов</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task9-progress"></div>
+                            <div class="progress" id="task9-progress" style="width: 0%"></div>
                         </div>
                         <span id="task9-counter">0/100</span>
                     </div>
@@ -210,26 +154,30 @@
                 <div class="task" onclick="completeTask(10)">
                     <div>
                         <h3>Накопи 20 звезд</h3>
-                        <p>Для особых наград</p>
+                        <p>Собери звезды для особых награад</p>
                         <div class="progress-bar">
-                            <div class="progress" id="task10-progress"></div>
+                            <div class="progress" id="task10-progress" style="width: 0%"></div>
                         </div>
                         <span id="task10-counter">0/20</span>
                     </div>
                     <div class="task-reward">+150 🍌</div>
                 </div>
             </div>
+            
             <div class="interaction-block">
-                <h3>Взаимодействие</h3>
+                <h3>Взаимодействие с миньонами</h3>
                 <div class="interaction-buttons">
-                    <button id="feed-minion-btn" class="action-button">Накормить (3 🍌)</button>
-                    <button id="start-mini-game" class="action-button">Поиграть</button>
+                    <button id="feed-minion-btn" class="action-button">
+                        Накормить миньона (3 🍌)
+                    </button>
+                    <button id="start-mini-game" class="action-button">
+                        Поиграть с миньоном
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Секция боксов -->
-        <div id="boxes-section" class="section hidden-section">
+        <div id="boxes-section" class="hidden-section">
             <h2>Боксы с подарками</h2>
             <div class="boxes">
                 <div class="box" onclick="openBox('simple')">
@@ -257,6 +205,7 @@
                     <span class="box-label">Эпический</span>
                 </div>
             </div>
+            
             <div class="fortune-wheel-container">
                 <h3>Колесо фортуны</h3>
                 <div class="fortune-wheel" id="reward-wheel">
@@ -271,62 +220,65 @@
                 </div>
                 <div class="wheel-pointer"></div>
                 <button id="spin-wheel-btn" class="action-button">Крутить колесо</button>
-                <span id="wheel-result"></span>
             </div>
         </div>
 
-        <!-- Секция друзей -->
-        <div id="friends-section" class="section hidden-section">
+        <div id="friends-section" class="hidden-section">
             <h2>Друзья</h2>
             <div class="tasks">
-                <p>Приглашай друзей и получай бонусы!</p>
-                <button id="invite-button" onclick="inviteFriends()" class="action-button">Пригласить</button>
+                <p>Пригласи друзей и получи бонусы!</p>
+                <button onclick="inviteFriends()" class="action-button">Пригласить друзей</button>
+                
                 <div class="friends-list" id="friends-list">
-                    <p>Пока нет друзей</p>
+                    <p>Пока нет приглашенных друзей</p>
+                    <!-- Здесь будут отображаться приглашенные друзья -->
                 </div>
             </div>
+            
             <div class="social-block">
-                <h3>Поделиться</h3>
-                <button onclick="shareProgress()" class="share-button">Поделиться</button>
-                <p>Расскажи о своем прогрессе!</p>
+                <h3>Поделиться прогрессом</h3>
+                <div class="share-buttons">
+                    <button onclick="shareProgress()" class="share-button">
+                        <span>Поделиться</span>
+                    </button>
+                </div>
+                <p>Расскажите друзьям о своем прогрессе и достижениях!</p>
             </div>
         </div>
 
-        <!-- Секция профиля -->
-        <div id="profile-section" class="section hidden-section">
-            <h2>Профиль</h2>
+        <div id="profile-section" class="hidden-section">
+            <h2>Мой профиль</h2>
             <div class="profile-card">
                 <div class="profile-header">
-                    <img src="https://i.imgur.com/UdwGAoD.png" alt="Avatar" class="profile-avatar">
+                    <img src="https://i.imgur.com/UdwGAoD.png" alt="User avatar" class="profile-avatar">
                     <div>
                         <h3 id="user-name">Игрок</h3>
                         <p>Уровень: <span id="profile-level">1</span></p>
                     </div>
                 </div>
-                <div class="profile-stats">
-                    <h4>Статистика</h4>
-                    <p>Бананов: <span id="total-bananas">0</span></p>
-                    <p>Звезд: <span id="total-stars">0</span></p>
-                    <p>Заданий: <span id="completed-tasks">0</span></p>
-                    <p>Боксов: <span id="opened-boxes">0</span></p>
-                    <p>Друзей: <span id="invited-friends">0</span></p>
-                    <p>Дней: <span id="active-days">1</span></p>
-                </div>
                 <div class="profile-achievements">
-                    <h4>Достижения</h4>
+                    <h4>Достижения:</h4>
                     <ul id="achievements-list">
                         <li>Начинающий миньоновод</li>
                     </ul>
                 </div>
+                <div class="profile-stats">
+                    <h4>Статистика:</h4>
+                    <p>Собрано бананов: <span id="total-bananas">0</span></p>
+                    <p>Заработано звезд: <span id="total-stars">0</span></p>
+                    <p>Выполнено заданий: <span id="completed-tasks">0</span></p>
+                    <p>Открыто боксов: <span id="opened-boxes">0</span></p>
+                    <p>Приглашено друзей: <span id="invited-friends">0</span></p>
+                    <p>Дней активности: <span id="active-days">1</span></p>
+                </div>
             </div>
         </div>
-
-        <!-- Секция настроек -->
-        <div id="settings-section" class="section hidden-section">
+        
+        <div id="settings-section" class="hidden-section">
             <h2>Настройки</h2>
             <div class="settings-card">
                 <div class="setting-item">
-                    <span>Звук</span>
+                    <span>Звуковые эффекты</span>
                     <button id="sound-toggle" class="toggle-button">🔊</button>
                 </div>
                 <div class="setting-item">
@@ -334,39 +286,65 @@
                     <button id="vibration-toggle" class="toggle-button">📳</button>
                 </div>
                 <div class="setting-item">
-                    <span>Синхронизация</span>
+                    <span>Синхронизация прогресса</span>
                     <div class="sync-status">Автоматически</div>
                 </div>
                 <div class="danger-zone">
                     <h4>Опасная зона</h4>
                     <button id="reset-progress" class="danger-button">Сбросить прогресс</button>
-                    <p class="warning-text">Это необратимо!</p>
+                    <p class="warning-text">Это действие необратимо!</p>
                 </div>
             </div>
+            
             <div class="about-block">
                 <h3>О приложении</h3>
                 <p>Версия: 1.1.0</p>
                 <p>© 2025 Minions Game</p>
             </div>
         </div>
+    </div>
 
-        <!-- Секция магазина -->
-        <div id="shop-section" class="section hidden-section">
-            <h2>Магазин</h2>
-            <div class="tasks">
-                <button id="wheel-button" class="action-button">Крутить колесо (3 ⭐)</button>
-            </div>
+    <div class="popup" id="reward-popup">
+        <div class="popup-content">
+            <h2>Награда!</h2>
+            <div class="reward-animation" id="reward-animation">🎁</div>
+            <p id="reward-text">Вы получили награду!</p>
+            <button onclick="closePopup()" class="action-button">Круто!</button>
         </div>
     </div>
 
-    <!-- Нижнее меню -->
+    <div class="achievement-notification" id="achievement-notification">
+        <h4>Новое достижение!</h4>
+        <p id="achievement-text"></p>
+    </div>
+    
+    <div id="mini-game-container" class="mini-game-container">
+        <div class="mini-game-content">
+            <h3>Мини-игра с миньонами</h3>
+            <p id="mini-game-instruction">Найдите особенного миньона!</p>
+            <div id="mini-game-field" class="mini-game-field">
+                <!-- Миньоны будут добавлены через JavaScript -->
+            </div>
+            <button id="close-mini-game" class="action-button">Закрыть</button>
+        </div>
+    </div>
+
     <div class="bottom-menu">
-        <div class="menu-item active" data-section="tasks-section">Задания</div>
-        <div class="menu-item" data-section="boxes-section">Боксы</div>
-        <div class="menu-item" data-section="friends-section">Друзья</div>
-        <div class="menu-item" data-section="profile-section">Профиль</div>
-        <div class="menu-item" data-section="settings-section">Настройки</div>
-        <div class="menu-item" data-section="shop-section">Магазин</div>
+        <div class="menu-item active" data-section="tasks-section">
+            Задания
+        </div>
+        <div class="menu-item" data-section="boxes-section">
+            Боксы
+        </div>
+        <div class="menu-item" data-section="friends-section">
+            Друзья
+        </div>
+        <div class="menu-item" data-section="profile-section">
+            Профиль
+        </div>
+        <div class="menu-item" data-section="settings-section">
+            Настройки
+        </div>
     </div>
 
     <script src="script.js"></script>
