@@ -3,460 +3,387 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Minions - Telegram WebApp</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <title>Minions Game</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="splash" id="splash-screen">
+    <!-- Экран загрузки -->
+    <div id="splash-screen">
         <div class="splash-minion"></div>
-        <h1>Minions</h1>
+        <h1>Minions Game</h1>
         <div class="loading-indicator">
             <div class="loading-spinner"></div>
-            <p>Загрузка игры...</p>
+            <p>Загрузка...</p>
         </div>
     </div>
 
-    <div class="header">
-        <h1>Minions</h1>
-        <div class="interactive-minion-container">
-            <div id="interactive-minion" class="interactive-minion">
-                <!-- Изображения для разных состояний миньона -->
-                <img src="images/minion-idle.png" class="minion-state active" data-state="idle" alt="Minion">
-                <img src="images/minion-happy.png" class="minion-state" data-state="happy" alt="Happy Minion">
-                <img src="images/minion-jump.png" class="minion-state" data-state="jump" alt="Jumping Minion">
-                <img src="images/minion-wink.png" class="minion-state" data-state="wink" alt="Winking Minion">
-                <img src="images/minion-shocked.png" class="minion-state" data-state="shocked" alt="Shocked Minion">
-            </div>
-            
-            <!-- Речевой пузырь для миньона -->
-            <div id="minion-speech-bubble" class="speech-bubble">
-                <p id="minion-speech-text">Привет! Я твой миньон!</p>
-            </div>
-            
-            <!-- Счетчик бананов от поглаживаний -->
-            <div class="pet-counter">
-                <span id="pet-count">0</span> 🍌
+    <!-- Контейнер для эффекта конфетти -->
+    <div id="confetti-container"></div>
+
+    <!-- Всплывающее сообщение -->
+    <div id="popup-message" style="display: none;"></div>
+
+    <!-- Контейнер для анимации открытия бокса -->
+    <div id="box-animation-container">
+        <img id="box-image" src="" alt="Бокс">
+        <div id="box-reward"></div>
+    </div>
+
+    <!-- Контейнер для колеса фортуны -->
+    <div id="wheel-container">
+        <h2>Колесо фортуны</h2>
+        <div id="fortune-wheel">
+            <div id="wheel-pointer"></div>
+        </div>
+        <div id="wheel-result"></div>
+    </div>
+
+    <!-- Контейнер для анимации повышения уровня -->
+    <div id="level-up-container">
+        <div class="level-up-content">
+            <h2>Новый уровень!</h2>
+            <div id="new-level"></div>
+            <div id="level-up-rewards">
+                Награда за уровень добавлена
             </div>
         </div>
+    </div>
+
+    <!-- Верхняя часть с заголовком -->
+    <div class="header">
+        <h1>Minions Game</h1>
     </div>
 
     <div class="container">
+        <!-- Награда за ежедневный вход -->
+        <div id="daily-reward-container">
+            <div class="daily-reward-title">Ежедневная награда</div>
+            <button id="daily-reward-btn">🎁</button>
+            <div class="daily-streak">Серия: <span id="streak-count">0</span> дней</div>
+        </div>
+
+        <!-- Основные ресурсы -->
         <div class="stats">
-            <div class="stats-item tip-button" data-tip="bananas">
-                <img src="https://i.imgur.com/NSrR5EC.png" alt="Banana icon" width="30" height="30">
+            <div class="stats-item">
+                <img src="images/banana.png" alt="Бананы">
                 <span id="bananas">0</span>
-                <span>Бананы</span>
             </div>
-            <div class="stats-item tip-button" data-tip="stars">
-                <img src="https://i.imgur.com/v9nfCnG.png" alt="Star icon" width="30" height="30">
+            <div class="stats-item">
+                <img src="images/star.png" alt="Звезды">
                 <span id="stars">0</span>
-                <span>Звезды</span>
             </div>
-            <div class="stats-item tip-button" data-tip="level">
-                <img src="https://i.imgur.com/hkzYK6m.png" alt="Level icon" width="30" height="30">
+            <div class="stats-item">
+                <img src="images/level.png" alt="Уровень">
                 <span id="level">1</span>
-                <span>Уровень</span>
             </div>
         </div>
 
-        <div id="daily-reward-container" class="daily-reward tip-button" data-tip="daily">
-            <div class="daily-reward-title">Ежедневная награда!</div>
-            <div class="daily-reward-box" id="daily-reward-btn">
-                <span style="font-size: 30px;">🎁</span>
-            </div>
-            <div class="daily-streak">Дней подряд: <span id="streak-count">0</span></div>
-        </div>
+        <!-- Интерактивный миньон -->
+        <div id="interactive-minion"></div>
 
-        <div id="tasks-section" class="active-section">
-            <h2>Задания <span class="tip-button" data-tip="tasks">❓</span></h2>
-            <div class="tasks">
-                <div class="task" onclick="completeTask(1)">
-                    <div>
-                        <h3>Пригласи 10 друзей</h3>
-                        <p>Пригласи друзей в игру</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task1-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task1-counter">0/10</span>
-                    </div>
+        <!-- Анимация награды -->
+        <div id="reward-animation"></div>
+
+        <!-- Раздел заданий -->
+        <div id="tasks-section" class="hidden-section">
+            <h2 class="section-heading">Задания</h2>
+            
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Пригласи 10 друзей</div>
                     <div class="task-reward">+100 🍌</div>
                 </div>
-                <div class="task" onclick="completeTask(2)">
-                    <div>
-                        <h3>Открой премиум-кейс</h3>
-                        <p>Используй звезды для открытия кейса</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task2-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task2-counter">0/1</span>
-                    </div>
+                <div class="progress-bar">
+                    <div id="task1-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task1-counter">0/10</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Открой премиум-кейс</div>
                     <div class="task-reward">+50 🍌</div>
                 </div>
-                <div class="task" onclick="completeTask(3)">
-                    <div>
-                        <h3>Накорми 5 миньонов</h3>
-                        <p>Раздай бананы голодным миньонам</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task3-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task3-counter">0/5</span>
-                    </div>
+                <div class="progress-bar">
+                    <div id="task2-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task2-counter">0/1</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Накорми 5 миньонов</div>
                     <div class="task-reward">+20 🍌</div>
                 </div>
-                <div class="task" onclick="completeTask(4)">
-                    <div>
-                        <h3>Собери 30 бананов</h3>
-                        <p>Накопи бананы для покупки кейсов</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task4-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task4-counter">0/30</span>
-                    </div>
+                <div class="progress-bar">
+                    <div id="task3-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task3-counter">0/5</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Собери 30 бананов</div>
                     <div class="task-reward">+5 ⭐</div>
                 </div>
-                <div class="task" onclick="completeTask(5)">
-                    <div>
-                        <h3>Открой 5 боксов</h3>
-                        <p>Открывай боксы любого типа</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task5-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task5-counter">0/5</span>
-                    </div>
+                <div class="progress-bar">
+                    <div id="task4-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task4-counter">0/30</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Открой 5 боксов</div>
                     <div class="task-reward">+10 ⭐</div>
                 </div>
-                <div class="task" onclick="completeTask(6)">
-                    <div>
-                        <h3>Достигни 3 уровня</h3>
-                        <p>Собирай ресурсы и повышай уровень</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task6-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task6-counter">0/3</span>
-                    </div>
+                <div class="progress-bar">
+                    <div id="task5-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task5-counter">0/5</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Достигни 3 уровня</div>
                     <div class="task-reward">+15 ⭐</div>
                 </div>
-                <div class="task" onclick="completeTask(7)">
-                    <div>
-                        <h3>Получи 5 достижений</h3>
-                        <p>Открывай новые достижения</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task7-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task7-counter">0/5</span>
-                    </div>
-                    <div class="task-reward">+50 🍌 и +5 ⭐</div>
+                <div class="progress-bar">
+                    <div id="task6-progress" class="progress" style="width: 0%;"></div>
                 </div>
-                <div class="task" onclick="completeTask(8)">
-                    <div>
-                        <h3>Серия входов 5 дней</h3>
-                        <p>Заходите в игру 5 дней подряд</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task8-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task8-counter">0/5</span>
-                    </div>
+                <div class="task-counter" id="task6-counter">0/3</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Получи 5 достижений</div>
+                    <div class="task-reward">+50 🍌, +5 ⭐</div>
+                </div>
+                <div class="progress-bar">
+                    <div id="task7-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task7-counter">0/5</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Серия входов 5 дней</div>
                     <div class="task-reward">+8 ⭐</div>
                 </div>
-                <div class="task" onclick="completeTask(9)">
-                    <div>
-                        <h3>Собери 100 бананов</h3>
-                        <p>Накопи большой запас бананов</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task9-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task9-counter">0/100</span>
-                    </div>
+                <div class="progress-bar">
+                    <div id="task8-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task8-counter">0/5</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Собери 100 бананов</div>
                     <div class="task-reward">+10 ⭐</div>
                 </div>
-                <div class="task" onclick="completeTask(10)">
-                    <div>
-                        <h3>Накопи 20 звезд</h3>
-                        <p>Собери звезды для особых награад</p>
-                        <div class="progress-bar">
-                            <div class="progress" id="task10-progress" style="width: 0%"></div>
-                        </div>
-                        <span id="task10-counter">0/20</span>
-                    </div>
+                <div class="progress-bar">
+                    <div id="task9-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="task9-counter">0/100</div>
+            </div>
+
+            <div class="task">
+                <div class="task-header">
+                    <div class="task-title">Накопи 20 звезд</div>
                     <div class="task-reward">+150 🍌</div>
                 </div>
-            </div>
-            
-            <div class="interaction-block">
-                <h3>Взаимодействие с миньонами</h3>
-                <div class="interaction-buttons">
-                    <button id="feed-minion-btn" class="action-button">
-                        Накормить миньона (3 🍌)
-                    </button>
-                    <button id="start-mini-game" class="action-button">
-                        Поиграть с миньоном
-                    </button>
+                <div class="progress-bar">
+                    <div id="task10-progress" class="progress" style="width: 0%;"></div>
                 </div>
+                <div class="task-counter" id="task10-counter">0/20</div>
             </div>
         </div>
 
+        <!-- Раздел боксов -->
         <div id="boxes-section" class="hidden-section">
-            <h2>Боксы с подарками</h2>
+            <h2 class="section-heading">Боксы</h2>
+            
             <div class="boxes">
-                <div class="box" onclick="openBox('simple')">
+                <div class="box" data-type="simple">
+                    <img class="box-img" src="images/box_simple.png" alt="Простой бокс">
                     <p>10 🍌</p>
-                    <span class="box-label">Простой</span>
+                    <div class="box-label">Простой</div>
                 </div>
-                <div class="box" onclick="openBox('standard')">
-                    <p>20 🍌</p>
-                    <span class="box-label">Стандарт</span>
+                
+                <div class="box" data-type="standard">
+                    <img class="box-img" src="images/box_standard.png" alt="Стандартный бокс">
+                    <p>25 🍌</p>
+                    <div class="box-label">Стандартный</div>
                 </div>
-                <div class="box" onclick="openBox('premium')">
+                
+                <div class="box" data-type="premium">
+                    <img class="box-img" src="images/box_premium.png" alt="Премиум бокс">
                     <p>5 ⭐</p>
-                    <span class="box-label">Премиум</span>
+                    <div class="box-label">Премиум</div>
                 </div>
-                <div class="box" onclick="openBox('mega')">
-                    <p>10 ⭐</p>
-                    <span class="box-label">Мега</span>
-                </div>
-                <div class="box" onclick="openBox('special')">
-                    <p>30 🍌</p>
-                    <span class="box-label">Особый</span>
-                </div>
-                <div class="box" onclick="openBox('epic')">
+                
+                <div class="box" data-type="mega">
+                    <img class="box-img" src="images/box_mega.png" alt="Мега бокс">
                     <p>15 ⭐</p>
-                    <span class="box-label">Эпический</span>
+                    <div class="box-label">Мега</div>
+                </div>
+                
+                <div class="box" data-type="special">
+                    <img class="box-img" src="images/box_special.png" alt="Специальный бокс">
+                    <p>100 🍌 + 5 ⭐</p>
+                    <div class="box-label">Специальный</div>
+                </div>
+                
+                <div class="box" data-type="epic">
+                    <img class="box-img" src="images/box_epic.png" alt="Эпический бокс">
+                    <p>200 🍌 + 15 ⭐</p>
+                    <div class="box-label">Эпический</div>
                 </div>
             </div>
-            
+
             <div class="fortune-wheel-container">
                 <h3>Колесо фортуны</h3>
-                <div class="fortune-wheel" id="reward-wheel">
-                    <div class="wheel-section" style="--section-color: #FFB700">10 🍌</div>
-                    <div class="wheel-section" style="--section-color: #FFC400">20 🍌</div>
-                    <div class="wheel-section" style="--section-color: #FFD000">2 ⭐</div>
-                    <div class="wheel-section" style="--section-color: #FFB700">50 🍌</div>
-                    <div class="wheel-section" style="--section-color: #FFD000">5 ⭐</div>
-                    <div class="wheel-section" style="--section-color: #FFC400">30 🍌</div>
-                    <div class="wheel-section" style="--section-color: #FFD000">3 ⭐</div>
-                    <div class="wheel-section" style="--section-color: #FFB700">Джекпот</div>
-                </div>
-                <div class="wheel-pointer"></div>
-                <button id="spin-wheel-btn" class="action-button">Крутить колесо</button>
+                <p>Испытайте удачу и получите ценные призы!</p>
+                <button id="wheel-button" class="action-button">Крутить (3 ⭐)</button>
             </div>
         </div>
 
+        <!-- Раздел друзей -->
         <div id="friends-section" class="hidden-section">
-            <h2>Друзья</h2>
-            <div class="tasks">
-                <p>Пригласи друзей и получи бонусы!</p>
-                <button onclick="inviteFriends()" class="action-button">Пригласить друзей</button>
-                
-                <div class="friends-list" id="friends-list">
-                    <p>Пока нет приглашенных друзей</p>
-                    <!-- Здесь будут отображаться приглашенные друзья -->
+            <h2 class="section-heading">Друзья</h2>
+            
+            <p>Пригласите друзей и получите бонусы!</p>
+            <button id="invite-button" class="action-button">Пригласить друзей</button>
+            
+            <div class="friends-list">
+                <h3>Приглашенные друзья: <span id="invited-friends">0</span></h3>
+                <!-- Список друзей будет добавляться динамически -->
+            </div>
+        </div>
+
+        <!-- Раздел профиля -->
+        <div id="profile-section" class="hidden-section">
+            <h2 class="section-heading">Профиль</h2>
+            
+            <div class="profile-header">
+                <div class="profile-avatar"></div>
+                <div class="profile-info">
+                    <h3 id="user-name">Игрок</h3>
+                    <div class="profile-level-badge">Уровень <span id="profile-level">1</span></div>
                 </div>
             </div>
             
-            <div class="social-block">
-                <h3>Поделиться прогрессом</h3>
-                <div class="share-buttons">
-                    <button onclick="shareProgress()" class="share-button">
-                        <span>Поделиться</span>
-                    </button>
+            <div class="profile-stats">
+                <h4>Статистика</h4>
+                <div class="stat-row">
+                    <span>Всего бананов:</span>
+                    <span id="total-bananas">0</span>
                 </div>
-                <p>Расскажите друзьям о своем прогрессе и достижениях!</p>
+                <div class="stat-row">
+                    <span>Всего звезд:</span>
+                    <span id="total-stars">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Выполнено заданий:</span>
+                    <span id="completed-tasks">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Открыто боксов:</span>
+                    <span id="opened-boxes">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Активных дней:</span>
+                    <span id="active-days">1</span>
+                </div>
+                <div class="stat-row">
+                    <span>Прогресс уровня:</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="level-progress" class="progress" style="width: 0%;"></div>
+                </div>
+                <div class="task-counter" id="level-counter">0/100</div>
+            </div>
+            
+            <div class="achievements-list" id="achievements-list">
+                <!-- Список достижений будет добавляться динамически -->
             </div>
         </div>
 
-        <div id="profile-section" class="hidden-section">
-            <h2>Мой профиль</h2>
-            <div class="profile-card">
-                <div class="profile-header">
-                    <img src="https://i.imgur.com/UdwGAoD.png" alt="User avatar" class="profile-avatar">
-                    <div>
-                        <h3 id="user-name">Игрок</h3>
-                        <p>Уровень: <span id="profile-level">1</span></p>
-                    </div>
-                </div>
-                <div class="profile-achievements">
-                    <h4>Достижения:</h4>
-                    <ul id="achievements-list">
-                        <li>Начинающий миньоновод</li>
-                    </ul>
-                </div>
-                <div class="profile-stats">
-                    <h4>Статистика:</h4>
-                    <p>Собрано бананов: <span id="total-bananas">0</span></p>
-                    <p>Заработано звезд: <span id="total-stars">0</span></p>
-                    <p>Выполнено заданий: <span id="completed-tasks">0</span></p>
-                    <p>Открыто боксов: <span id="opened-boxes">0</span></p>
-                    <p>Приглашено друзей: <span id="invited-friends">0</span></p>
-                    <p>Дней активности: <span id="active-days">1</span></p>
-                </div>
-            </div>
-        </div>
-        
+        <!-- Раздел настроек -->
         <div id="settings-section" class="hidden-section">
-            <h2>Настройки</h2>
-            <div class="settings-card">
-                <div class="setting-item">
-                    <span>Звуковые эффекты</span>
-                    <button id="sound-toggle" class="toggle-button">🔊</button>
-                </div>
-                <div class="setting-item">
-                    <span>Вибрация</span>
-                    <button id="vibration-toggle" class="toggle-button">📳</button>
-                </div>
-                <div class="setting-item">
-                    <span>Синхронизация прогресса</span>
-                    <div class="sync-status">Автоматически</div>
-                </div>
-                <div class="danger-zone">
-                    <h4>Опасная зона</h4>
-                    <button id="reset-progress" class="danger-button">Сбросить прогресс</button>
-                    <p class="warning-text">Это действие необратимо!</p>
-                </div>
+            <h2 class="section-heading">Настройки</h2>
+            
+            <div class="setting-item">
+                <span>Звук</span>
+                <button id="sound-toggle" class="toggle-button">🔊</button>
+            </div>
+            
+            <div class="setting-item">
+                <span>Вибрация</span>
+                <button id="vibration-toggle" class="toggle-button">📳</button>
             </div>
             
             <div class="about-block">
-                <h3>О приложении</h3>
-                <p>Версия: 1.1.0</p>
-                <p>© 2025 Minions Game</p>
+                <p>Версия 1.0.0</p>
+                <p>© 2023 Minions Game</p>
             </div>
         </div>
-        
-        <!-- Секция магазина -->
+
+        <!-- Раздел магазина -->
         <div id="shop-section" class="hidden-section">
-            <h2>Магазин</h2>
+            <h2 class="section-heading">Магазин</h2>
             
-            <div class="shop-category">
-                <h3>Звезды</h3>
-                <p class="category-description">Пополните свой запас звезд для открытия премиум-боксов</p>
+            <div class="shop-items">
+                <div class="shop-item">
+                    <img class="shop-item-img" src="images/banana.png" alt="Бананы">
+                    <div class="shop-item-title">50 бананов</div>
+                    <div class="shop-item-price">
+                        <img src="images/star.png" alt="Звезды"> 5
+                    </div>
+                    <button class="buy-button">Купить</button>
+                </div>
                 
-                <div class="shop-items">
-                    <div class="shop-item" onclick="buyStars(10, 1, 'Набор 10 звезд', 'Начальный набор звезд для игры')">
-                        <div class="shop-item-icon">⭐ 10</div>
-                        <div class="shop-item-price">1 TG Star</div>
-                        <button class="buy-button">Купить</button>
+                <div class="shop-item">
+                    <img class="shop-item-img" src="images/banana.png" alt="Бананы">
+                    <div class="shop-item-title">100 бананов</div>
+                    <div class="shop-item-price">
+                        <img src="images/star.png" alt="Звезды"> 9
                     </div>
-                    
-                    <div class="shop-item" onclick="buyStars(50, 4, 'Набор 50 звезд', 'Популярный набор звезд')">
-                        <div class="shop-item-icon">⭐ 50</div>
-                        <div class="shop-item-price">4 TG Stars</div>
-                        <div class="shop-item-badge">Популярный</div>
-                        <button class="buy-button">Купить</button>
-                    </div>
-                    
-                    <div class="shop-item" onclick="buyStars(150, 10, 'Набор 150 звезд', 'VIP набор звезд')">
-                        <div class="shop-item-icon">⭐ 150</div>
-                        <div class="shop-item-price">10 TG Stars</div>
-                        <div class="shop-item-badge">Лучшая цена</div>
-                        <button class="buy-button">Купить</button>
-                    </div>
+                    <button class="buy-button">Купить</button>
                 </div>
-            </div>
-            
-            <div class="shop-category">
-                <h3>Бустеры</h3>
-                <p class="category-description">Ускорьте свой прогресс с помощью бустеров</p>
                 
-                <div class="shop-items">
-                    <div class="shop-item" onclick="buyInGameItem('banana_booster', 5)">
-                        <div class="shop-item-icon">🍌+</div>
-                        <div class="shop-item-title">Банановый бустер</div>
-                        <div class="shop-item-description">Получите 50-100 бананов</div>
-                        <div class="shop-item-price">5 ⭐</div>
-                        <button class="buy-button">Купить</button>
+                <div class="shop-item">
+                    <img class="shop-item-img" src="images/star.png" alt="Звезды">
+                    <div class="shop-item-title">10 звезд</div>
+                    <div class="shop-item-price">
+                        <img src="images/banana.png" alt="Бананы"> 100
                     </div>
-                    
-                    <div class="shop-item" onclick="buyInGameItem('level_booster', 15)">
-                        <div class="shop-item-icon">📊</div>
-                        <div class="shop-item-title">Уровень+</div>
-                        <div class="shop-item-description">Мгновенное повышение уровня</div>
-                        <div class="shop-item-price">15 ⭐</div>
-                        <button class="buy-button">Купить</button>
-                    </div>
-                    
-                    <div class="shop-item" onclick="buyInGameItem('daily_reward_doubler', 10)">
-                        <div class="shop-item-icon">2️⃣</div>
-                        <div class="shop-item-title">Удвоитель наград</div>
-                        <div class="shop-item-description">Удвоение ежедневных наград на 24 часа</div>
-                        <div class="shop-item-price">10 ⭐</div>
-                        <button class="buy-button">Купить</button>
-                    </div>
-                    
-                    <div class="shop-item" onclick="buyInGameItem('task_skipper', 8)">
-                        <div class="shop-item-icon">⏭️</div>
-                        <div class="shop-item-title">Пропуск задания</div>
-                        <div class="shop-item-description">Автоматическое выполнение задания</div>
-                        <div class="shop-item-price">8 ⭐</div>
-                        <button class="buy-button">Купить</button>
-                    </div>
+                    <button class="buy-button">Купить</button>
                 </div>
-            </div>
-            
-            <div class="feature-banner">
-                <div class="banner-content">
-                    <h3>VIP-статус</h3>
-                    <p>Получите VIP-статус и разблокируйте эксклюзивные возможности: особые миньоны, двойные награды и многое другое!</p>
-                    <button class="vip-button" onclick="buyVIPStatus()">Стать VIP за 50 TG Stars</button>
+                
+                <div class="shop-item">
+                    <img class="shop-item-img" src="images/star.png" alt="Звезды">
+                    <div class="shop-item-title">25 звезд</div>
+                    <div class="shop-item-price">
+                        <img src="images/banana.png" alt="Бананы"> 200
+                    </div>
+                    <button class="buy-button">Купить</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="popup" id="reward-popup">
-        <div class="popup-content">
-            <h2>Награда!</h2>
-            <div class="reward-animation" id="reward-animation">🎁</div>
-            <p id="reward-text">Вы получили награду!</p>
-            <button onclick="closePopup()" class="action-button">Круто!</button>
-        </div>
-    </div>
-
-    <div class="achievement-notification" id="achievement-notification">
-        <h4>Новое достижение!</h4>
-        <p id="achievement-text"></p>
-    </div>
-    
-    <div id="mini-game-container" class="mini-game-container">
-        <div class="mini-game-content">
-            <h3>Мини-игра с миньонами</h3>
-            <p id="mini-game-instruction">Найдите особенного миньона!</p>
-            <div id="mini-game-field" class="mini-game-field">
-                <!-- Миньоны будут добавлены через JavaScript -->
-            </div>
-            <button id="close-mini-game" class="action-button">Закрыть</button>
-        </div>
-    </div>
-
+    <!-- Нижнее меню -->
     <div class="bottom-menu">
-        <div class="menu-item active" data-section="tasks-section">
-            Задания
-        </div>
-        <div class="menu-item" data-section="boxes-section">
-            Боксы
-        </div>
-        <div class="menu-item" data-section="friends-section">
-            Друзья
-        </div>
-        <div class="menu-item" data-section="shop-section">
-            Магазин
-        </div>
-        <div class="menu-item" data-section="profile-section">
-            Профиль
-        </div>
-        <div class="menu-item" data-section="settings-section">
-            Настройки
-        </div>
+        <div class="menu-item active" data-section="tasks-section">Задания</div>
+        <div class="menu-item" data-section="boxes-section">Боксы</div>
+        <div class="menu-item" data-section="friends-section">Друзья</div>
+        <div class="menu-item" data-section="profile-section">Профиль</div>
+        <div class="menu-item" data-section="settings-section">Настройки</div>
     </div>
 
-    <div class="image-preloader">
-        <!-- Предзагрузка изображений миньона -->
-        <img src="images/minion-idle.png">
-        <img src="images/minion-happy.png">
-        <img src="images/minion-jump.png">
-        <img src="images/minion-wink.png">
-        <img src="images/minion-shocked.png">
-    </div>
-
+    <!-- Подключение скриптов -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
