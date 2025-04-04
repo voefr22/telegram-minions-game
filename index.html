@@ -19,7 +19,26 @@
 
     <div class="header">
         <h1>Minions</h1>
-        <div class="big-minion"></div>
+        <div class="interactive-minion-container">
+            <div id="interactive-minion" class="interactive-minion">
+                <!-- Изображения для разных состояний миньона -->
+                <img src="images/minion-idle.png" class="minion-state active" data-state="idle" alt="Minion">
+                <img src="images/minion-happy.png" class="minion-state" data-state="happy" alt="Happy Minion">
+                <img src="images/minion-jump.png" class="minion-state" data-state="jump" alt="Jumping Minion">
+                <img src="images/minion-wink.png" class="minion-state" data-state="wink" alt="Winking Minion">
+                <img src="images/minion-shocked.png" class="minion-state" data-state="shocked" alt="Shocked Minion">
+            </div>
+            
+            <!-- Речевой пузырь для миньона -->
+            <div id="minion-speech-bubble" class="speech-bubble">
+                <p id="minion-speech-text">Привет! Я твой миньон!</p>
+            </div>
+            
+            <!-- Счетчик бананов от поглаживаний -->
+            <div class="pet-counter">
+                <span id="pet-count">0</span> 🍌
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -302,6 +321,85 @@
                 <p>© 2025 Minions Game</p>
             </div>
         </div>
+        
+        <!-- Секция магазина -->
+        <div id="shop-section" class="hidden-section">
+            <h2>Магазин</h2>
+            
+            <div class="shop-category">
+                <h3>Звезды</h3>
+                <p class="category-description">Пополните свой запас звезд для открытия премиум-боксов</p>
+                
+                <div class="shop-items">
+                    <div class="shop-item" onclick="buyStars(10, 1, 'Набор 10 звезд', 'Начальный набор звезд для игры')">
+                        <div class="shop-item-icon">⭐ 10</div>
+                        <div class="shop-item-price">1 TG Star</div>
+                        <button class="buy-button">Купить</button>
+                    </div>
+                    
+                    <div class="shop-item" onclick="buyStars(50, 4, 'Набор 50 звезд', 'Популярный набор звезд')">
+                        <div class="shop-item-icon">⭐ 50</div>
+                        <div class="shop-item-price">4 TG Stars</div>
+                        <div class="shop-item-badge">Популярный</div>
+                        <button class="buy-button">Купить</button>
+                    </div>
+                    
+                    <div class="shop-item" onclick="buyStars(150, 10, 'Набор 150 звезд', 'VIP набор звезд')">
+                        <div class="shop-item-icon">⭐ 150</div>
+                        <div class="shop-item-price">10 TG Stars</div>
+                        <div class="shop-item-badge">Лучшая цена</div>
+                        <button class="buy-button">Купить</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="shop-category">
+                <h3>Бустеры</h3>
+                <p class="category-description">Ускорьте свой прогресс с помощью бустеров</p>
+                
+                <div class="shop-items">
+                    <div class="shop-item" onclick="buyInGameItem('banana_booster', 5)">
+                        <div class="shop-item-icon">🍌+</div>
+                        <div class="shop-item-title">Банановый бустер</div>
+                        <div class="shop-item-description">Получите 50-100 бананов</div>
+                        <div class="shop-item-price">5 ⭐</div>
+                        <button class="buy-button">Купить</button>
+                    </div>
+                    
+                    <div class="shop-item" onclick="buyInGameItem('level_booster', 15)">
+                        <div class="shop-item-icon">📊</div>
+                        <div class="shop-item-title">Уровень+</div>
+                        <div class="shop-item-description">Мгновенное повышение уровня</div>
+                        <div class="shop-item-price">15 ⭐</div>
+                        <button class="buy-button">Купить</button>
+                    </div>
+                    
+                    <div class="shop-item" onclick="buyInGameItem('daily_reward_doubler', 10)">
+                        <div class="shop-item-icon">2️⃣</div>
+                        <div class="shop-item-title">Удвоитель наград</div>
+                        <div class="shop-item-description">Удвоение ежедневных наград на 24 часа</div>
+                        <div class="shop-item-price">10 ⭐</div>
+                        <button class="buy-button">Купить</button>
+                    </div>
+                    
+                    <div class="shop-item" onclick="buyInGameItem('task_skipper', 8)">
+                        <div class="shop-item-icon">⏭️</div>
+                        <div class="shop-item-title">Пропуск задания</div>
+                        <div class="shop-item-description">Автоматическое выполнение задания</div>
+                        <div class="shop-item-price">8 ⭐</div>
+                        <button class="buy-button">Купить</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="feature-banner">
+                <div class="banner-content">
+                    <h3>VIP-статус</h3>
+                    <p>Получите VIP-статус и разблокируйте эксклюзивные возможности: особые миньоны, двойные награды и многое другое!</p>
+                    <button class="vip-button" onclick="buyVIPStatus()">Стать VIP за 50 TG Stars</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="popup" id="reward-popup">
@@ -339,12 +437,24 @@
         <div class="menu-item" data-section="friends-section">
             Друзья
         </div>
+        <div class="menu-item" data-section="shop-section">
+            Магазин
+        </div>
         <div class="menu-item" data-section="profile-section">
             Профиль
         </div>
         <div class="menu-item" data-section="settings-section">
             Настройки
         </div>
+    </div>
+
+    <div class="image-preloader">
+        <!-- Предзагрузка изображений миньона -->
+        <img src="images/minion-idle.png">
+        <img src="images/minion-happy.png">
+        <img src="images/minion-jump.png">
+        <img src="images/minion-wink.png">
+        <img src="images/minion-shocked.png">
     </div>
 
     <script src="script.js"></script>
