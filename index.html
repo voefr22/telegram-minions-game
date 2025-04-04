@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minions - Telegram WebApp</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/telegram-web-app/6.7.0/telegram-web-app.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="splash" id="splash-screen">
+        <div class="splash-minion"></div>
+        <h1>Minions</h1>
+        <p>Загрузка...</p>
+    </div>
+
+    <div class="header">
+        <h1>Minions</h1>
+        <div class="big-minion"></div>
+    </div>
+
+    <div class="container">
+        <div class="stats">
+            <div class="stats-item">
+                <img src="/api/placeholder/30/30" alt="Banana icon">
+                <span id="bananas">0</span>
+                <span>Бананы</span>
+            </div>
+            <div class="stats-item">
+                <img src="/api/placeholder/30/30" alt="Star icon">
+                <span id="stars">0</span>
+                <span>Звезды</span>
+            </div>
+            <div class="stats-item">
+                <img src="/api/placeholder/30/30" alt="Level icon">
+                <span id="level">1</span>
+                <span>Уровень</span>
+            </div>
+        </div>
+
+        <div id="daily-reward-container" class="daily-reward">
+            <div class="daily-reward-title">Ежедневная награда!</div>
+            <div class="daily-reward-box" id="daily-reward-btn">
+                <span style="font-size: 30px;">🎁</span>
+            </div>
+            <div class="daily-streak">Дней подряд: <span id="streak-count">0</span></div>
+        </div>
+
+        <div id="tasks-section" class="active-section">
+            <h2>Задания</h2>
+            <div class="tasks">
+                <div class="task" onclick="completeTask(1)">
+                    <div>
+                        <h3>Пригласи 10 друзей</h3>
+                        <p>Пригласи друзей в игру</p>
+                        <div class="progress-bar">
+                            <div class="progress" id="task1-progress" style="width: 0%"></div>
+                        </div>
+                        <span id="task1-counter">0/10</span>
+                    </div>
+                    <div class="task-reward">+100 🍌</div>
+                </div>
+                <div class="task" onclick="completeTask(2)">
+                    <div>
+                        <h3>Открой премиум-кейс</h3>
+                        <p>Используй звезды для открытия кейса</p>
+                        <div class="progress-bar">
+                            <div class="progress" id="task2-progress" style="width: 0%"></div>
+                        </div>
+                        <span id="task2-counter">0/1</span>
+                    </div>
+                    <div class="task-reward">+50 🍌</div>
+                </div>
+                <div class="task" onclick="completeTask(3)">
+                    <div>
+                        <h3>Накорми 5 миньонов</h3>
+                        <p>Раздай бананы голодным миньонам</p>
+                        <div class="progress-bar">
+                            <div class="progress" id="task3-progress" style="width: 0%"></div>
+                        </div>
+                        <span id="task3-counter">0/5</span>
+                    </div>
+                    <div class="task-reward">+20 🍌</div>
+                </div>
+                <div class="task" onclick="completeTask(4)">
+                    <div>
+                        <h3>Собери 30 бананов</h3>
+                        <p>Накопи бананы для покупки кейсов</p>
+                        <div class="progress-bar">
+                            <div class="progress" id="task4-progress" style="width: 0%"></div>
+                        </div>
+                        <span id="task4-counter">0/30</span>
+                    </div>
+                    <div class="task-reward">+5 ⭐</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="boxes-section" class="hidden-section">
+            <h2>Боксы с подарками</h2>
+            <div class="boxes">
+                <div class="box" onclick="openBox('simple')">
+                    <p>10 🍌</p>
+                    <span class="box-label">Простой</span>
+                </div>
+                <div class="box" onclick="openBox('standard')">
+                    <p>20 🍌</p>
+                    <span class="box-label">Стандарт</span>
+                </div>
+                <div class="box" onclick="openBox('premium')">
+                    <p>5 ⭐</p>
+                    <span class="box-label">Премиум</span>
+                </div>
+                <div class="box" onclick="openBox('mega')">
+                    <p>10 ⭐</p>
+                    <span class="box-label">Мега</span>
+                </div>
+                <div class="box" onclick="openBox('special')">
+                    <p>30 🍌</p>
+                    <span class="box-label">Особый</span>
+                </div>
+                <div class="box" onclick="openBox('epic')">
+                    <p>15 ⭐</p>
+                    <span class="box-label">Эпический</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="friends-section" class="hidden-section">
+            <h2>Друзья</h2>
+            <div class="tasks">
+                <p>Пригласи друзей и получи бонусы!</p>
+                <button onclick="inviteFriends()">Пригласить друзей</button>
+                
+                <div class="friends-list" id="friends-list">
+                    <p>Пока нет приглашенных друзей</p>
+                    <!-- Здесь будут отображаться приглашенные друзья -->
+                </div>
+            </div>
+        </div>
+
+        <div id="profile-section" class="hidden-section">
+            <h2>Мой профиль</h2>
+            <div style="background-color: #FFD200; border-radius: 15px; padding: 15px; margin: 20px 0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                    <img src="/api/placeholder/60/60" alt="User avatar" style="border-radius: 50%; margin-right: 15px;">
+                    <div>
+                        <h3 id="user-name">Игрок</h3>
+                        <p>Уровень: <span id="profile-level">1</span></p>
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <h4>Достижения:</h4>
+                    <ul id="achievements-list">
+                        <li>Начинающий миньоновод</li>
+                    </ul>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <h4>Статистика:</h4>
+                    <p>Собрано бананов: <span id="total-bananas">0</span></p>
+                    <p>Заработано звезд: <span id="total-stars">0</span></p>
+                    <p>Выполнено заданий: <span id="completed-tasks">0</span></p>
+                    <p>Открыто боксов: <span id="opened-boxes">0</span></p>
+                    <p>Приглашено друзей: <span id="invited-friends">0</span></p>
+                    <p>Дней активности: <span id="active-days">1</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="popup" id="reward-popup">
+        <div class="popup-content">
+            <h2>Награда!</h2>
+            <div class="reward-animation" id="reward-animation">🎁</div>
+            <p id="reward-text">Вы получили награду!</p>
+            <button onclick="closePopup()">Круто!</button>
+        </div>
+    </div>
+
+    <div class="achievement-notification" id="achievement-notification">
+        <h4>Новое достижение!</h4>
+        <p id="achievement-text"></p>
+    </div>
+
+    <div class="bottom-menu">
+        <div class="menu-item active" onclick="showSection('tasks-section')">
+            Задания
+        </div>
+        <div class="menu-item" onclick="showSection('boxes-section')">
+            Боксы
+        </div>
+        <div class="menu-item" onclick="showSection('friends-section')">
+            Друзья
+        </div>
+        <div class="menu-item" onclick="showSection('profile-section')">
+            Профиль
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
