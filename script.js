@@ -194,15 +194,15 @@ function spinWheel() {
     console.log("Кручение колеса фортуны");
     
     try {
-        // Проверяем, достаточно ли звезд
-        if (gameState.stars < 3) {
-            showPopup('Недостаточно звезд! Требуется 3 звезды.');
+        // Проверяем, достаточно ли бананов
+        if (gameState.bananas < 30) {
+            showPopup('Недостаточно бананов! Требуется 30 бананов.');
             playSound('minionShocked');
             return;
         }
         
-        // Списываем звезды
-        gameState.stars -= 3;
+        // Списываем бананы
+        gameState.bananas -= 30;
         
         // Получаем случайный сектор (от 1 до 8)
         const sector = Math.floor(Math.random() * 8) + 1;
@@ -270,29 +270,29 @@ function processWheelReward(sector) {
         let reward;
         
         switch(sector) {
-            case 1: // 5 бананов
-                reward = { type: 'bananas', amount: 5, text: '+5 бананов' };
-                break;
-            case 2: // 10 бананов
+            case 1: // 10 бананов
                 reward = { type: 'bananas', amount: 10, text: '+10 бананов' };
                 break;
-            case 3: // 20 бананов
+            case 2: // 20 бананов
                 reward = { type: 'bananas', amount: 20, text: '+20 бананов' };
                 break;
-            case 4: // 1 звезда
-                reward = { type: 'stars', amount: 1, text: '+1 звезда' };
+            case 3: // 30 бананов
+                reward = { type: 'bananas', amount: 30, text: '+30 бананов' };
                 break;
-            case 5: // 2 звезды
-                reward = { type: 'stars', amount: 2, text: '+2 звезды' };
+            case 4: // 40 бананов
+                reward = { type: 'bananas', amount: 40, text: '+40 бананов' };
                 break;
-            case 6: // 5 опыта
+            case 5: // 5 опыта
                 reward = { type: 'exp', amount: 5, text: '+5 опыта' };
                 break;
-            case 7: // 10 опыта
+            case 6: // 10 опыта
                 reward = { type: 'exp', amount: 10, text: '+10 опыта' };
                 break;
-            case 8: // 50 бананов (джекпот)
-                reward = { type: 'bananas', amount: 50, text: 'ДЖЕКПОТ! +50 бананов' };
+            case 7: // 15 опыта
+                reward = { type: 'exp', amount: 15, text: '+15 опыта' };
+                break;
+            case 8: // 100 бананов (джекпот)
+                reward = { type: 'bananas', amount: 100, text: 'ДЖЕКПОТ! +100 бананов' };
                 break;
         }
         
@@ -300,9 +300,6 @@ function processWheelReward(sector) {
         if (reward.type === 'bananas') {
             gameState.bananas += reward.amount;
             gameState.totalBananas += reward.amount;
-        } else if (reward.type === 'stars') {
-            gameState.stars += reward.amount;
-            gameState.totalStars += reward.amount;
         } else if (reward.type === 'exp') {
             addExperience(reward.amount);
         }
@@ -959,14 +956,15 @@ async function init() {
                     setTimeout(function() {
                         gameElements.splashScreen.style.display = 'none';
                         
-                        // Показываем первую секцию
-                        showSection('tasks-section');
+                        // Показываем последнюю активную секцию или главный экран
+                        const lastSection = localStorage.getItem('lastActiveSection') || 'main-screen';
+                        showSection(lastSection);
                     }, 500);
                     
                     // Проигрываем приветственный звук
                     playSound('task');
                 } else {
-                    showSection('tasks-section');
+                    showSection('main-screen');
                 }
             } catch (e) {
                 // Критическая ошибка - напрямую скрываем экран загрузки и показываем сообщение
@@ -1175,38 +1173,45 @@ function domElementExists(id) {
 }
 // Показать секцию
 function showSection(sectionId) {
-    // Normalize section ID
-    if (!sectionId.endsWith('-section')) {
+    console.log(`Переключение на секцию: ${sectionId}`);
+    
+    // Нормализуем ID секции
+    if (!sectionId.endsWith('-section') && sectionId !== 'main-screen') {
         sectionId = sectionId + '-section';
     }
     
-    // Get the target section
+    // Получаем целевую секцию
     const targetSection = document.getElementById(sectionId);
     if (!targetSection) {
-        console.warn(`Section not found: ${sectionId}`);
+        console.warn(`Секция не найдена: ${sectionId}`);
         return;
     }
     
-    // Hide all sections first
-    const sections = document.querySelectorAll('[id$="-section"]');
+    // Сначала скрываем все секции
+    const sections = document.querySelectorAll('[id$="-section"], #main-screen');
     sections.forEach(section => {
         section.style.display = 'none';
         section.classList.remove('active-section');
     });
     
-    // Show target section
+    // Показываем целевую секцию
     targetSection.style.display = 'block';
     targetSection.classList.add('active-section');
     
-    // Update menu items
+    // Обновляем активные пункты меню
     const menuItems = document.querySelectorAll('.menu-item');
     menuItems.forEach(item => {
         item.classList.remove('active');
-        if (item.getAttribute('data-section') === sectionId || 
-            item.getAttribute('data-section') + '-section' === sectionId) {
+        const itemSectionId = item.getAttribute('data-section');
+        if (itemSectionId === sectionId || 
+            itemSectionId + '-section' === sectionId || 
+            (itemSectionId === 'main-screen' && sectionId === 'main-screen')) {
             item.classList.add('active');
         }
     });
+    
+    // Сохраняем последнюю активную секцию
+    localStorage.setItem('lastActiveSection', sectionId);
 }
 // Выполнение задания
 function completeTask(taskId) {
@@ -1240,31 +1245,31 @@ function completeTask(taskId) {
                 break;
                 
             case 4: // Собери 30 бананов
-                reward = { type: 'stars', amount: 5 };
+                reward = { type: 'bananas', amount: 25 };
                 break;
                 
             case 5: // Открой 5 боксов
-                reward = { type: 'stars', amount: 10 };
+                reward = { type: 'bananas', amount: 40 };
                 break;
                 
             case 6: // Достигни 3 уровня
-                reward = { type: 'stars', amount: 15 };
+                reward = { type: 'bananas', amount: 60 };
                 break;
                 
             case 7: // Получи 5 достижений
-                reward = { type: 'both', bananas: 50, stars: 5 };
+                reward = { type: 'bananas', amount: 75 };
                 break;
                 
             case 8: // Серия входов 5 дней подряд
-                reward = { type: 'stars', amount: 8 };
+                reward = { type: 'bananas', amount: 35 };
                 break;
                 
             case 9: // Собери 100 бананов
-                reward = { type: 'stars', amount: 10 };
+                reward = { type: 'bananas', amount: 50 };
                 break;
                 
-            case 10: // Накопи 20 звезд
-                reward = { type: 'bananas', amount: 150 };
+            case 10: // Накопи банановую ферму из 10 растений
+                reward = { type: 'bananas', amount: 100 };
                 break;
         }
         
@@ -1279,16 +1284,6 @@ function completeTask(taskId) {
             gameState.bananas += reward.amount;
             gameState.totalBananas += reward.amount;
             rewardText = `Задание выполнено! +${reward.amount} бананов`;
-        } else if (reward.type === 'stars') {
-            gameState.stars += reward.amount;
-            gameState.totalStars += reward.amount;
-            rewardText = `Задание выполнено! +${reward.amount} звезд`;
-        } else if (reward.type === 'both') {
-            gameState.bananas += reward.bananas;
-            gameState.totalBananas += reward.bananas;
-            gameState.stars += reward.stars;
-            gameState.totalStars += reward.stars;
-            rewardText = `Задание выполнено! +${reward.bananas} бананов, +${reward.stars} звезд`;
         }
         
         // Обновляем статистику
@@ -1326,140 +1321,138 @@ function safeExecute(func, errorMessage, fallback) {
 
 // Открытие бокса
 function openBox(type) {
-  return safeExecute(() => {
-    console.log("Открытие бокса:", type);
-    
-    let canOpen = false;
-    let rewardText = '';
-    
-    switch(type) {
-      case 'simple':
-        if (gameState.bananas >= 10) {
-          gameState.bananas -= 10;
-          canOpen = true;
-          
-          // Случайная награда
-          let reward = Math.floor(Math.random() * 3) + 1;
-          if (reward === 1) {
-            // Банан
-            gameState.bananas += 5;
-            gameState.totalBananas += 5;
-            rewardText = '+5 бананов';
-          } else if (reward === 2) {
-            // Звезда
-            gameState.stars += 1;
-            gameState.totalStars += 1;
-            rewardText = '+1 звезда';
-          } else {
-            // Уровень
-            addExperience(5);
-            rewardText = '+5 опыта';
-          }
-        }
-        break;
+  console.log("Открытие бокса:", type);
+  
+  let canOpen = false;
+  let rewardText = '';
+  
+  switch(type) {
+    case 'simple':
+      if (gameState.bananas >= 10) {
+        gameState.bananas -= 10;
+        canOpen = true;
         
-      case 'standard':
-        if (gameState.bananas >= 25) {
-          gameState.bananas -= 25;
-          canOpen = true;
-          
-          // Случайная награда
-          reward = Math.floor(Math.random() * 3) + 1;
-          if (reward === 1) {
-            gameState.bananas += 15;
-            gameState.totalBananas += 15;
-            rewardText = '+15 бананов';
-          } else if (reward === 2) {
-            gameState.stars += 3;
-            gameState.totalStars += 3;
-            rewardText = '+3 звезды';
-          } else {
-            addExperience(10);
-            rewardText = '+10 опыта';
-          }
+        // Случайная награда
+        let reward = Math.floor(Math.random() * 3) + 1;
+        if (reward === 1) {
+          // Банан
+          gameState.bananas += 15;
+          gameState.totalBananas += 15;
+          rewardText = '+15 бананов';
+        } else if (reward === 2) {
+          // Опыт
+          addExperience(5);
+          rewardText = '+5 опыта';
+        } else {
+          // Больше бананов
+          gameState.bananas += 12;
+          gameState.totalBananas += 12;
+          rewardText = '+12 бананов';
         }
-        break;
-        
-      case 'premium':
-        if (gameState.stars >= 5) {
-          gameState.stars -= 5;
-          canOpen = true;
-          
-          // Случайная награда
-          reward = Math.floor(Math.random() * 3) + 1;
-          if (reward === 1) {
-            gameState.bananas += 50;
-            gameState.totalBananas += 50;
-            rewardText = '+50 бананов';
-          } else if (reward === 2) {
-            gameState.stars += 10;
-            gameState.totalStars += 10;
-            rewardText = '+10 звезд';
-          } else {
-            addExperience(25);
-            rewardText = '+25 опыта';
-          }
-          
-          // Отмечаем задание на открытие премиум-кейса
-          if (gameState.taskProgress.task2 < 1) {
-            gameState.taskProgress.task2 = 1;
-            completeTask(2);
-          }
-        }
-        break;
-        
-      case 'mega':
-        if (gameState.stars >= 15) {
-          gameState.stars -= 15;
-          canOpen = true;
-          
-          // Случайная награда
-          reward = Math.floor(Math.random() * 3) + 1;
-          if (reward === 1) {
-            gameState.bananas += 100;
-            gameState.totalBananas += 100;
-            rewardText = '+100 бананов';
-          } else if (reward === 2) {
-            gameState.stars += 20;
-            gameState.totalStars += 20;
-            rewardText = '+20 звезд';
-          } else {
-            addExperience(50);
-            rewardText = '+50 опыта';
-          }
-        }
-        break;
-    }
-    
-    if (canOpen) {
-      // Увеличиваем счетчик открытых боксов
-      gameState.openedBoxes++;
-      
-      // Проверяем задание на открытие боксов
-      if (gameState.openedBoxes >= 5 && gameState.taskProgress.task5 < 1) {
-        gameState.taskProgress.task5 = 1;
-        completeTask(5);
       }
+      break;
       
-      // Обновляем статистику и сохраняем игру
-      updateStats();
-      saveGameState();
+    case 'standard':
+      if (gameState.bananas >= 25) {
+        gameState.bananas -= 25;
+        canOpen = true;
+        
+        // Случайная награда
+        reward = Math.floor(Math.random() * 3) + 1;
+        if (reward === 1) {
+          gameState.bananas += 35;
+          gameState.totalBananas += 35;
+          rewardText = '+35 бананов';
+        } else if (reward === 2) {
+          gameState.bananas += 30;
+          gameState.totalBananas += 30;
+          rewardText = '+30 бананов';
+        } else {
+          addExperience(10);
+          rewardText = '+10 опыта';
+        }
+      }
+      break;
       
-      // Показываем анимацию и оповещение
-      showBoxAnimation(type, rewardText);
+    case 'premium':
+      if (gameState.bananas >= 50) {
+        gameState.bananas -= 50;
+        canOpen = true;
+        
+        // Случайная награда
+        reward = Math.floor(Math.random() * 3) + 1;
+        if (reward === 1) {
+          gameState.bananas += 80;
+          gameState.totalBananas += 80;
+          rewardText = '+80 бананов';
+        } else if (reward === 2) {
+          gameState.bananas += 65;
+          gameState.totalBananas += 65;
+          rewardText = '+65 бананов';
+        } else {
+          addExperience(25);
+          rewardText = '+25 опыта';
+        }
+        
+        // Отмечаем задание на открытие премиум-кейса
+        if (gameState.taskProgress.task2 < 1) {
+          gameState.taskProgress.task2 = 1;
+          completeTask(2);
+        }
+      }
+      break;
       
-      // Звуковой эффект и вибрация
-      playSound('box');
-      vibrate([100, 50, 200]);
-      
-      return true;
-    } else {
-      // Показываем сообщение о недостатке ресурсов
-      showPopup('Недостаточно ресурсов!');
-      playSound('minionShocked');
-      return false;
+    case 'mega':
+      if (gameState.bananas >= 100) {
+        gameState.bananas -= 100;
+        canOpen = true;
+        
+        // Случайная награда
+        reward = Math.floor(Math.random() * 3) + 1;
+        if (reward === 1) {
+          gameState.bananas += 160;
+          gameState.totalBananas += 160;
+          rewardText = '+160 бананов';
+        } else if (reward === 2) {
+          gameState.bananas += 140;
+          gameState.totalBananas += 140;
+          rewardText = '+140 бананов';
+        } else {
+          addExperience(50);
+          rewardText = '+50 опыта';
+        }
+      }
+      break;
+  }
+  
+  if (canOpen) {
+    // Увеличиваем счетчик открытых боксов
+    gameState.openedBoxes++;
+    
+    // Проверяем задание на открытие боксов
+    if (gameState.openedBoxes >= 5 && gameState.taskProgress.task5 < 1) {
+      gameState.taskProgress.task5 = 1;
+      completeTask(5);
     }
-  }, `Error opening box: ${type}`);
+    
+    // Обновляем статистику и сохраняем игру
+    updateStats();
+    saveGameState();
+    
+    // Показываем анимацию и оповещение
+    showBoxAnimation(type, rewardText);
+    
+    // Звуковой эффект и вибрация
+    playSound('box');
+    vibrate([100, 50, 200]);
+    
+    return true;
+  } else {
+    // Показываем сообщение о недостатке ресурсов
+    showPopup('Недостаточно бананов!');
+    playSound('minionShocked');
+    return false;
+  }
 }
 
 // Анимация открытия бокса
