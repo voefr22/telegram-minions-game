@@ -243,16 +243,6 @@ function spinWheel() {
             // Выдаем награду после остановки колеса
             setTimeout(() => {
                 processWheelReward(sector);
-                
-                // Скрываем колесо через 3 секунды
-                setTimeout(() => {
-                    wheelContainer.style.display = 'none';
-                    const wheelResult = document.getElementById('wheel-result');
-                    if (wheelResult) {
-                        wheelResult.style.opacity = 0;
-                    }
-                    wheel.style.transition = 'none';
-                }, 3000);
             }, 4200);
         }, 500);
     } catch (e) {
@@ -1458,56 +1448,42 @@ function openBox(type) {
 // Анимация открытия бокса
 function showBoxAnimation(type, rewardText) {
     try {
-        const boxContainer = document.getElementById('box-animation-container');
-        if (!boxContainer) {
-            console.warn('Контейнер анимации бокса не найден');
-            showPopup(rewardText); // Показываем хотя бы сообщение
+        const container = document.getElementById('box-animation-container');
+        const boxImage = document.getElementById('box-image');
+        const boxReward = document.getElementById('box-reward');
+        
+        if (!container || !boxImage || !boxReward) {
+            console.warn('Элементы анимации бокса не найдены');
+            showPopup(rewardText);
             return;
         }
         
-        boxContainer.style.display = 'flex';
+        // Устанавливаем изображение бокса
+        boxImage.src = `images/box_${type}.png`;
         
-        // Устанавливаем картинку бокса
-        const boxImage = document.getElementById('box-image');
-        if (boxImage) {
-            boxImage.src = getImage(`box_${type}`);
+        // Показываем контейнер
+        container.style.display = 'flex';
+        
+        // Анимация открытия бокса
+        setTimeout(() => {
+            boxImage.style.transform = 'scale(1.2)';
             
-            // Анимация открытия
+            // Показываем награду
             setTimeout(() => {
-                boxImage.classList.add('shake');
+                boxReward.textContent = rewardText;
+                boxReward.style.opacity = '1';
                 
-                setTimeout(() => {
-                    boxImage.classList.remove('shake');
-                    boxImage.classList.add('open');
-                    
-                    // Показываем награду
-                    const boxReward = document.getElementById('box-reward');
-                    if (boxReward) {
-                        boxReward.textContent = rewardText;
-                        boxReward.style.opacity = 1;
-                    }
-                    
-                    // Создаем эффект конфетти
-                    createConfetti();
-                    
-                    // Закрываем анимацию через 3 секунды
-                    setTimeout(() => {
-                        boxImage.classList.remove('open');
-                        if (boxReward) {
-                            boxReward.style.opacity = 0;
-                        }
-                        boxContainer.style.display = 'none';
-                    }, 3000);
-                }, 1000);
+                // Звуковой эффект и вибрация
+                playSound('reward');
+                vibrate([100, 50, 100]);
+                
+                // Создаем эффект конфетти
+                createConfetti();
             }, 500);
-        } else {
-            console.warn('Элемент изображения бокса не найден');
-            showPopup(rewardText);
-            boxContainer.style.display = 'none';
-        }
+        }, 300);
     } catch (e) {
         console.error('Ошибка при анимации открытия бокса:', e);
-        showPopup(rewardText); // Показываем хотя бы сообщение
+        showPopup(rewardText);
     }
 }
 
@@ -1601,10 +1577,7 @@ function showLevelUpAnimation() {
         // Создаем эффект конфетти
         createConfetti();
         
-        // Закрываем анимацию через 3 секунды
-        setTimeout(() => {
-            container.style.display = 'none';
-        }, 3000);
+        // НЕ закрываем анимацию автоматически - пользователь закроет сам
     } catch (e) {
         console.error('Ошибка при анимации повышения уровня:', e);
         showPopup(`Уровень повышен! Вы достигли ${gameState.level} уровня!`);
@@ -1754,3 +1727,45 @@ updateStats = function() {
   }
   updateMainBananas();
 };
+
+// Функция для закрытия модальных окон
+function closeModal(containerId) {
+  const container = document.getElementById(containerId);
+  if (container) {
+    // Добавляем анимацию исчезновения
+    container.style.opacity = '0';
+    
+    // После анимации скрываем элемент
+    setTimeout(() => {
+      container.style.display = 'none';
+      container.style.opacity = '1'; // Сбрасываем прозрачность для будущих показов
+    }, 300);
+    
+    // Если это контейнер уровня, дополнительно сбрасываем состояние
+    if (containerId === 'level-up-container') {
+      const wheelResult = document.getElementById('wheel-result');
+      if (wheelResult) {
+        wheelResult.style.opacity = 0;
+      }
+    }
+    
+    console.log(`Модальное окно ${containerId} закрыто пользователем`);
+  }
+}
+
+// Добавляем обработчик для инициализации при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+  // Скрываем все модальные окна, которые могли остаться открытыми
+  const modalContainers = [
+    'level-up-container', 
+    'wheel-container', 
+    'box-animation-container'
+  ];
+  
+  modalContainers.forEach(containerId => {
+    const container = document.getElementById(containerId);
+    if (container) {
+      container.style.display = 'none';
+    }
+  });
+});
