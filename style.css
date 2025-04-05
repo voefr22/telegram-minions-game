@@ -949,3 +949,122 @@ body {
         height: 200px;
     }
 }
+
+/* Main screen styles */
+#main-screen {
+  background-color: #FFE500;
+  min-height: calc(100vh - 70px); /* Account for bottom menu */
+  padding-bottom: 70px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: #FFD000;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.3);
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.profile-avatar-small {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-image: url('images/avatar.png');
+  background-size: cover;
+  margin-right: 8px;
+}
+
+.currency-badge {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  padding: 8px 15px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.main-content-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.main-currency-display {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 40px;
+}
+
+#main-minion-container {
+  width: 220px;
+  height: 300px;
+  margin: 20px auto;
+}
+
+#main-interactive-minion {
+  width: 100%;
+  height: 100%;
+  background-image: url('https://i.imgur.com/ZcukEsb.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  animation: floatingMinion 5s infinite ease-in-out;
+  cursor: pointer;
+}
+
+.main-status-message {
+  margin: 20px 0;
+}
+
+.main-status-message h2 {
+  font-size: 28px;
+  margin-bottom: 10px;
+  color: #FF8C00;
+}
+
+.main-status-message p {
+  font-size: 16px;
+  color: #333;
+}
+
+.main-action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.main-action-buttons .action-button {
+  background-color: #FF8C00;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.main-action-buttons .action-button:hover {
+  background-color: #FF7600;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+}
