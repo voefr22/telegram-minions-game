@@ -363,7 +363,9 @@ class UIManager {
         this.gameState = gameState;
         this.resourceManager = resourceManager;
         this.elements = this.cacheElements();
+        this.currentSection = 'tasks-section';
         this.setupEventListeners();
+        this.initializeNavigation();
     }
 
     cacheElements() {
@@ -377,7 +379,9 @@ class UIManager {
             popupMessage: document.querySelector('.popup-message'),
             boxAnimation: document.querySelector('.box-animation'),
             confettiContainer: document.querySelector('.confetti-container'),
-            taskList: document.querySelector('.task-list')
+            taskList: document.querySelector('.task-list'),
+            sections: document.querySelectorAll('[id$="-section"]'),
+            navItems: document.querySelectorAll('.nav-item')
         };
     }
 
@@ -397,10 +401,101 @@ class UIManager {
             button.addEventListener('click', () => this.handleGameButtonClick(button));
         });
 
+        // Navigation items
+        this.elements.navItems.forEach(item => {
+            item.addEventListener('click', (e) => this.handleNavigation(e));
+        });
+
         // Interactive minion
         if (this.elements.interactiveMinion) {
             this.elements.interactiveMinion.addEventListener('click', () => this.handleMinionClick());
         }
+    }
+
+    initializeNavigation() {
+        // Hide all sections except the current one
+        this.elements.sections.forEach(section => {
+            section.style.display = 'none';
+            section.classList.remove('active-section');
+        });
+
+        // Show the default section
+        const defaultSection = document.getElementById(this.currentSection);
+        if (defaultSection) {
+            defaultSection.style.display = 'block';
+            defaultSection.classList.add('active-section');
+        }
+
+        // Update navigation state
+        this.updateNavigationState();
+    }
+
+    handleNavigation(event) {
+        const navItem = event.currentTarget;
+        const targetSection = navItem.getAttribute('data-section');
+        if (!targetSection) return;
+
+        // Update current section
+        this.currentSection = `${targetSection}-section`;
+
+        // Hide all sections
+        this.elements.sections.forEach(section => {
+            section.style.display = 'none';
+            section.classList.remove('active-section');
+        });
+
+        // Show target section
+        const sectionElement = document.getElementById(this.currentSection);
+        if (sectionElement) {
+            sectionElement.style.display = 'block';
+            sectionElement.classList.add('active-section');
+            
+            // Trigger any necessary updates for the section
+            this.updateSectionContent(targetSection);
+        }
+
+        // Update navigation state
+        this.updateNavigationState();
+
+        // Play sound effect
+        this.resourceManager.playSound('click');
+    }
+
+    updateNavigationState() {
+        // Update navigation items
+        this.elements.navItems.forEach(item => {
+            const section = item.getAttribute('data-section');
+            if (section && `${section}-section` === this.currentSection) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
+
+    updateSectionContent(section) {
+        // Update content based on section
+        switch (section) {
+            case 'tasks':
+                this.updateTaskProgress();
+                break;
+            case 'boxes':
+                this.updateBoxAvailability();
+                break;
+            case 'profile':
+                this.updateAchievements();
+                this.updateLevelProgress();
+                break;
+        }
+    }
+
+    updateBoxAvailability() {
+        const boxes = document.querySelectorAll('.box-button');
+        boxes.forEach(box => {
+            const type = box.getAttribute('data-box-type');
+            const isAvailable = gameLogic.canOpenBox(type);
+            box.classList.toggle('disabled', !isAvailable);
+        });
     }
 
     handleMenuItemClick(item) {
