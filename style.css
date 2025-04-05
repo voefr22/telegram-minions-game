@@ -1121,88 +1121,239 @@ body {
 }
 
 .farm-stats {
+  background-color: #FFD200;
+  border-radius: 15px;
+  padding: 15px;
+  margin-bottom: 20px;
   display: flex;
-  justify-content: space-around;
-  margin-bottom: 15px;
-  background-color: rgba(255, 255, 255, 0.3);
-  padding: 10px;
-  border-radius: 10px;
+  justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 .farm-stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex: 1;
+  min-width: 100px;
+  text-align: center;
+  padding: 10px;
 }
 
-.farm-image {
-  height: 150px;
+.farm-minions-container {
+  background-color: #FFDC4A;
+  border-radius: 15px;
+  padding: 20px;
+  margin: 20px 0;
+  min-height: 150px;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 15px 0;
-}
-
-.farm-image img {
-  max-height: 100%;
-  max-width: 100%;
-}
-
-.farm-actions {
-  display: flex;
-  justify-content: space-around;
-  margin: 15px 0;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
 }
 
-.farm-info {
-  background-color: rgba(255, 255, 255, 0.3);
-  padding: 10px;
-  border-radius: 10px;
-  margin-top: 15px;
+.farm-minion {
+  width: 70px;
+  height: 90px;
+  background-image: url('images/minion.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  animation: floatingMinion 4s infinite ease-in-out;
+  position: relative;
+  margin: 5px;
+}
+
+#farm-collect-btn {
+  width: 80%;
+  margin: 20px auto;
+  display: block;
+  font-size: 18px;
+  padding: 15px;
+}
+
+.farm-upgrades {
+  background-color: #FFDC4A;
+  border-radius: 15px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+.farm-upgrades h3 {
   text-align: center;
+  margin-bottom: 15px;
+  color: #FF8C00;
 }
 
-/* 5. Исправления для мобильных устройств */
-@media (max-width: 360px) {
-  .main-action-buttons {
-    flex-direction: column;
-  }
-  
-  .main-action-buttons .action-button {
-    width: 100%;
-    margin: 5px 0;
-  }
-  
-  #main-minion-container {
-    width: 180px;
-    height: 240px;
-  }
-  
-  .farm-actions {
-    flex-direction: column;
-  }
-  
-  .farm-actions .action-button {
-    width: 100%;
-    margin: 5px 0;
-  }
+.upgrade-item {
+  background-color: #FFE066;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.3s ease;
 }
 
-/* 6. Темная тема - дополнительные стили */
-.dark-theme #main-screen {
-  background-color: #222;
+.upgrade-item:hover {
+  transform: translateX(5px);
+  background-color: #FFD700;
 }
 
-.dark-theme .top-stats,
-.dark-theme .farm-container {
-  background-color: #333;
+.upgrade-info {
+  flex: 1;
 }
 
-.dark-theme .farm-stats,
-.dark-theme .farm-info {
-  background-color: rgba(255, 255, 255, 0.1);
+.upgrade-title {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.upgrade-description {
+  font-size: 14px;
+  color: #666;
+}
+
+.upgrade-cost {
+  font-weight: bold;
+  color: #FF8C00;
+  margin-right: 15px;
+}
+
+.upgrade-btn {
+  background-color: #FF8C00;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upgrade-btn:hover {
+  background-color: #FF7600;
+  transform: scale(1.05);
+}
+
+.upgrade-btn:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+}
+
+.boost-active {
+  position: relative;
+}
+
+.boost-active::after {
+  content: '🔥';
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.2); }
+}
+
+.disabled-upgrade {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Стили для магазина */
+.shop-items {
+  margin-top: 20px;
+}
+
+.shop-category {
+  background-color: #FFDC4A;
+  border-radius: 15px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.shop-category h3 {
+  text-align: center;
+  margin-bottom: 15px;
+  color: #FF8C00;
+}
+
+.shop-item {
+  background-color: #FFE066;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  transition: transform 0.3s ease;
+}
+
+.shop-item:hover {
+  transform: translateX(5px);
+  background-color: #FFD700;
+}
+
+.shop-item-img {
+  font-size: 30px;
+  margin-right: 15px;
+}
+
+.shop-item-details {
+  flex: 1;
+}
+
+.shop-item-title {
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.shop-item-desc {
+  font-size: 14px;
+  color: #666;
+}
+
+.shop-item-price {
+  font-weight: bold;
+  color: #FF8C00;
+  margin-right: 15px;
+}
+
+.shop-buy-btn {
+  background-color: #FF8C00;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.shop-buy-btn:hover {
+  background-color: #FF7600;
+  transform: scale(1.05);
+}
+
+.shop-buy-btn:disabled {
+  background-color: #999;
+  cursor: not-allowed;
+}
+
+.premium-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.premium-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255,215,0,0.3) 0%, rgba(255,215,0,0) 50%, rgba(255,215,0,0.3) 100%);
+  animation: shine 2s infinite;
+  pointer-events: none;
 }
 
 /* Modal containers */
@@ -1315,4 +1466,3 @@ body {
   opacity: 0;
   transition: opacity 0.5s;
 }
-
