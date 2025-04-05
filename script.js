@@ -19,7 +19,7 @@ function throttle(func, delay) {
     const now = Date.now();
     if (now - lastCall >= delay) {
       lastCall = now;
-      func.apply(this, args);
+      return func.apply(this, args);
     }
   };
 }
@@ -1659,3 +1659,105 @@ function createConfetti() {
         console.error('Ошибка при создании конфетти:', e);
     }
 }
+
+// Add to your existing init function
+function initMainScreen() {
+  // Update main screen currency display
+  updateMainBananas();
+  
+  // Add click handler to main minion
+  const mainMinion = document.getElementById('main-interactive-minion');
+  if (mainMinion) {
+    mainMinion.addEventListener('click', function() {
+      // Use the existing pet minion function
+      // Adding the throttle function to prevent rapid clicking
+      throttle(function() {
+        // Proigate animation
+        mainMinion.classList.add('pet-animation');
+        setTimeout(() => {
+          mainMinion.classList.remove('pet-animation');
+        }, 500);
+        
+        // Increase pet count
+        gameState.petCount++;
+        
+        // Award banana every 5 pets
+        if (gameState.petCount % 5 === 0) {
+          gameState.bananas++;
+          gameState.totalBananas++;
+          showPopup('+1 банан за заботу о миньоне!');
+          updateStats();
+          updateMainBananas();
+          saveGameState();
+          
+          // Check for minion feeding tasks
+          if (gameState.petCount >= 25 && gameState.taskProgress.task3 < 5) {
+            gameState.taskProgress.task3 = Math.min(5, Math.floor(gameState.petCount / 5));
+            updateTaskProgress();
+            
+            if (gameState.taskProgress.task3 >= 5) {
+              completeTask(3);
+            }
+          }
+        }
+        
+        // Play sound
+        playSound('minionHappy');
+        
+        // Vibrate device
+        vibrate(30);
+      }, 300)();
+    });
+  }
+  
+  // Add click handlers to action buttons
+  const actionButtons = document.querySelectorAll('.main-action-buttons .action-button');
+  actionButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const sectionId = this.getAttribute('data-section');
+      if (sectionId) {
+        showSection(sectionId);
+        playSound('click');
+        vibrate(30);
+      }
+    });
+  });
+  
+  // Profile link navigation
+  const profileLink = document.querySelector('.profile-link');
+  if (profileLink) {
+    profileLink.addEventListener('click', function() {
+      showSection('profile-section');
+      playSound('click');
+    });
+  }
+  
+  // Set as default section on start
+  // Add to your showSplashScreen completion callback
+  setTimeout(function() {
+    showSection('main-screen');
+  }, 2000);
+}
+
+// Function to update main screen banana counts
+function updateMainBananas() {
+  const mainBananasCount = document.getElementById('main-bananas-count');
+  const mainBananasLarge = document.getElementById('main-bananas-large');
+  
+  if (mainBananasCount) {
+    mainBananasCount.textContent = gameState.bananas;
+  }
+  
+  if (mainBananasLarge) {
+    mainBananasLarge.textContent = gameState.bananas;
+  }
+}
+
+// Update the existing updateStats function to also update main screen
+const originalUpdateStats = updateStats;
+updateStats = function() {
+  if (typeof originalUpdateStats === 'function') {
+    originalUpdateStats();
+  }
+  updateMainBananas();
+};
