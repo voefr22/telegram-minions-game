@@ -1,55 +1,1029 @@
+// Game Configuration
+const CONFIG = {
+    // Resource paths
+    IMAGES: {
+        MINION: 'images/minion.png',
+        MINION_HAPPY: 'images/minion-happy.png',
+        MINION_SHOCKED: 'images/minion-shocked.png',
+        SIMPLE_BOX: 'images/simple-box.png',
+        STANDARD_BOX: 'images/standard-box.png',
+        PREMIUM_BOX: 'images/premium-box.png',
+        MEGA_BOX: 'images/mega-box.png',
+        BANANA: 'images/banana.png',
+        STAR: 'images/star.png',
+        WHEEL: 'images/wheel.png',
+        POINTER: 'images/pointer.png'
+    },
+
+    SOUNDS: {
+        CLICK: 'sounds/click.mp3',
+        MINION_HAPPY: 'sounds/minion-happy.mp3',
+        MINION_SHOCKED: 'sounds/minion-shocked.mp3',
+        BOX: 'sounds/box.mp3',
+        TASK: 'sounds/task.mp3',
+        LEVEL_UP: 'sounds/level-up.mp3',
+        WHEEL: 'sounds/wheel.mp3'
+    },
+
+    // Fallback resources
+    FALLBACK_IMAGE: 'images/fallback.png',
+
+    // Game settings
+    SAVE_INTERVAL: 30000, // 30 seconds
+    ANIMATION_DURATION: 1000, // 1 second
+    POPUP_DURATION: 3000, // 3 seconds
+    CONFETTI_COUNT: 50,
+    VIBRATION_DURATION: 50,
+
+    // Box configurations
+    BOXES: {
+        SIMPLE: {
+            cost: { bananas: 10 },
+            rewards: [
+                { type: 'bananas', amount: 5, text: '+5 бананов' },
+                { type: 'stars', amount: 1, text: '+1 звезда' },
+                { type: 'exp', amount: 5, text: '+5 опыта' }
+            ]
+        },
+        STANDARD: {
+            cost: { bananas: 25 },
+            rewards: [
+                { type: 'bananas', amount: 15, text: '+15 бананов' },
+                { type: 'stars', amount: 3, text: '+3 звезды' },
+                { type: 'exp', amount: 10, text: '+10 опыта' }
+            ]
+        },
+        PREMIUM: {
+            cost: { stars: 5 },
+            rewards: [
+                { type: 'bananas', amount: 50, text: '+50 бананов' },
+                { type: 'stars', amount: 10, text: '+10 звезд' },
+                { type: 'exp', amount: 25, text: '+25 опыта' }
+            ]
+        },
+        MEGA: {
+            cost: { stars: 15 },
+            rewards: [
+                { type: 'bananas', amount: 100, text: '+100 бананов' },
+                { type: 'stars', amount: 20, text: '+20 звезд' },
+                { type: 'exp', amount: 50, text: '+50 опыта' }
+            ]
+        }
+    },
+
+    // Task configurations
+    TASKS: {
+        1: { text: 'Погладить миньона 10 раз', target: 10, reward: { type: 'bananas', amount: 100 } },
+        2: { text: 'Собрать 100 бананов', target: 100, reward: { type: 'bananas', amount: 50 } },
+        3: { text: 'Собрать 50 бананов за день', target: 50, reward: { type: 'bananas', amount: 20 } },
+        4: { text: 'Собрать 10 звезд', target: 10, reward: { type: 'stars', amount: 5 } },
+        5: { text: 'Открыть 5 коробок', target: 5, reward: { type: 'stars', amount: 10 } },
+        6: { text: 'Достичь 3 уровня', target: 3, reward: { type: 'stars', amount: 15 } },
+        7: { text: 'Пригласить 3 друзей', target: 3, reward: { type: 'both', bananas: 50, stars: 5 } },
+        8: { text: 'Собрать 20 звезд', target: 20, reward: { type: 'stars', amount: 8 } },
+        9: { text: 'Собрать 30 звезд', target: 30, reward: { type: 'stars', amount: 10 } },
+        10: { text: 'Собрать 200 бананов', target: 200, reward: { type: 'bananas', amount: 150 } }
+    },
+
+    // Level configurations
+    LEVELS: {
+        BASE_EXP: 100,
+        EXP_MULTIPLIER: 1.5,
+        REWARDS: {
+            BANANAS_MULTIPLIER: 10,
+            STARS_DIVISOR: 2,
+            STARS_BONUS: 1
+        }
+    },
+
+    // Default game settings
+    DEFAULT_SETTINGS: {
+        soundEnabled: true,
+        vibrationEnabled: true,
+        notificationsEnabled: true
+    },
+
+    // Server configuration
+    SERVER: {
+        URL: 'https://minions-game-server.glitch.me/api',
+        ENDPOINTS: {
+            SYNC: '/sync',
+            DAILY: '/daily',
+            ACHIEVEMENTS: '/achievements'
+        },
+        TIMEOUT: 5000
+    }
+};
+
+// Initialize game settings
+window.gameSettings = { ...CONFIG.DEFAULT_SETTINGS };
+
+// Load saved settings
+try {
+    const savedSettings = localStorage.getItem('gameSettings');
+    if (savedSettings) {
+        window.gameSettings = { ...window.gameSettings, ...JSON.parse(savedSettings) };
+    }
+} catch (error) {
+    console.error('Error loading game settings:', error);
+}
+
+// Game State Manager
+class GameStateManager {
+    constructor() {
+        this.state = {
+            bananas: 0,
+            stars: 0,
+            level: 1,
+            exp: 0,
+            completedTasks: 0,
+            openedBoxes: 0,
+            totalBananas: 0,
+            totalStars: 0,
+            activeDays: 1,
+            streak: 0,
+            lastReward: null,
+            invitedFriends: 0,
+            lastSaveTime: Date.now(),
+            petCount: 0,
+            achievements: ['Начинающий миньоновод'],
+            taskProgress: {
+                task1: 0, task2: 0, task3: 0, task4: 0, task5: 0,
+                task6: 0, task7: 0, task8: 0, task9: 0, task10: 0
+            }
+        };
+        this.listeners = new Set();
+    }
+
+    subscribe(listener) {
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
+
+    notify() {
+        this.listeners.forEach(listener => listener(this.state));
+    }
+
+    update(newState) {
+        this.state = { ...this.state, ...newState };
+        this.notify();
+        this.save();
+    }
+
+    async save() {
+        try {
+            localStorage.setItem('minionsGameState', JSON.stringify(this.state));
+            if (Date.now() - this.state.lastSaveTime > CONFIG.SAVE_INTERVAL) {
+                await this.syncWithServer();
+            }
+        } catch (error) {
+            console.error('Error saving game state:', error);
+        }
+    }
+
+    async syncWithServer() {
+        if (!window.tg?.initDataUnsafe?.user?.id) return;
+        
+        try {
+            const response = await fetch(`${CONFIG.SERVER.URL}/save-progress`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: window.tg.initDataUnsafe.user.id.toString(),
+                    gameState: this.state
+                })
+            });
+            
+            if (response.ok) {
+                this.state.lastSaveTime = Date.now();
+            }
+        } catch (error) {
+            console.error('Error syncing with server:', error);
+        }
+    }
+}
+
+// Resource Manager
+class ResourceManager {
+    constructor() {
+        this.images = new Map();
+        this.sounds = new Map();
+        this.loadedResources = 0;
+        this.totalResources = 0;
+        this.onProgress = null;
+        this.onComplete = null;
+    }
+
+    async preloadResources(onProgress, onComplete) {
+        this.onProgress = onProgress;
+        this.onComplete = onComplete;
+
+        const resources = [
+            // Images
+            { type: 'image', id: 'minion', path: 'images/minion.png' },
+            { type: 'image', id: 'minion-happy', path: 'images/minion-happy.png' },
+            { type: 'image', id: 'minion-shocked', path: 'images/minion-shocked.png' },
+            { type: 'image', id: 'simple-box', path: 'images/simple-box.png' },
+            { type: 'image', id: 'standard-box', path: 'images/standard-box.png' },
+            { type: 'image', id: 'premium-box', path: 'images/premium-box.png' },
+            { type: 'image', id: 'mega-box', path: 'images/mega-box.png' },
+            { type: 'image', id: 'banana', path: 'images/banana.png' },
+            { type: 'image', id: 'star', path: 'images/star.png' },
+            { type: 'image', id: 'wheel', path: 'images/wheel.png' },
+            { type: 'image', id: 'pointer', path: 'images/pointer.png' },
+            
+            // Sounds
+            { type: 'sound', id: 'click', path: 'sounds/click.mp3' },
+            { type: 'sound', id: 'minionHappy', path: 'sounds/minion-happy.mp3' },
+            { type: 'sound', id: 'minionShocked', path: 'sounds/minion-shocked.mp3' },
+            { type: 'sound', id: 'box', path: 'sounds/box.mp3' },
+            { type: 'sound', id: 'task', path: 'sounds/task.mp3' },
+            { type: 'sound', id: 'levelUp', path: 'sounds/level-up.mp3' },
+            { type: 'sound', id: 'wheel', path: 'sounds/wheel.mp3' }
+        ];
+
+        this.totalResources = resources.length;
+        this.loadedResources = 0;
+
+        const loadPromises = resources.map(resource => this.loadResource(resource));
+        await Promise.all(loadPromises);
+
+        if (this.onComplete) {
+            this.onComplete();
+        }
+    }
+
+    async loadResource(resource) {
+        try {
+            if (resource.type === 'image') {
+                await this.loadImage(resource.id, resource.path);
+            } else if (resource.type === 'sound') {
+                await this.loadSound(resource.id, resource.path);
+            }
+        } catch (error) {
+            console.error(`Error loading ${resource.type} ${resource.id}:`, error);
+            // Use fallback resources if available
+            if (resource.type === 'image') {
+                this.images.set(resource.id, CONFIG.FALLBACK_IMAGE);
+            }
+        }
+    }
+
+    async loadImage(id, path) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                this.images.set(id, img);
+                this.updateProgress();
+                resolve();
+            };
+            img.onerror = () => reject(new Error(`Failed to load image: ${path}`));
+            img.src = path;
+        });
+    }
+
+    async loadSound(id, path) {
+        return new Promise((resolve, reject) => {
+            const audio = new Audio();
+            audio.oncanplaythrough = () => {
+                this.sounds.set(id, audio);
+                this.updateProgress();
+                resolve();
+            };
+            audio.onerror = () => reject(new Error(`Failed to load sound: ${path}`));
+            audio.src = path;
+        });
+    }
+
+    updateProgress() {
+        this.loadedResources++;
+        if (this.onProgress) {
+            const progress = (this.loadedResources / this.totalResources) * 100;
+            this.onProgress(progress);
+        }
+    }
+
+    getImage(id) {
+        return this.images.get(id) || CONFIG.FALLBACK_IMAGE;
+    }
+
+    playSound(id) {
+        if (!window.gameSettings.soundEnabled) return;
+
+        const sound = this.sounds.get(id);
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play().catch(error => {
+                console.error(`Error playing sound ${id}:`, error);
+            });
+        }
+    }
+
+    stopSound(id) {
+        const sound = this.sounds.get(id);
+        if (sound) {
+            sound.pause();
+            sound.currentTime = 0;
+        }
+    }
+
+    stopAllSounds() {
+        this.sounds.forEach(sound => {
+            sound.pause();
+            sound.currentTime = 0;
+        });
+    }
+}
+
+// UI Manager
+class UIManager {
+    constructor(gameState, resourceManager) {
+        this.gameState = gameState;
+        this.resourceManager = resourceManager;
+        this.elements = this.cacheElements();
+        this.setupEventListeners();
+    }
+
+    cacheElements() {
+        return {
+            menuItems: document.querySelectorAll('.menu-item'),
+            settingsToggles: document.querySelectorAll('.settings-toggle'),
+            gameButtons: document.querySelectorAll('.game-button'),
+            interactiveMinion: document.querySelector('.interactive-minion'),
+            achievementsList: document.querySelector('.achievements-list'),
+            levelProgress: document.querySelector('.level-progress'),
+            popupMessage: document.querySelector('.popup-message'),
+            boxAnimation: document.querySelector('.box-animation'),
+            confettiContainer: document.querySelector('.confetti-container')
+        };
+    }
+
+    setupEventListeners() {
+        // Menu items
+        this.elements.menuItems.forEach(item => {
+            item.addEventListener('click', () => this.handleMenuItemClick(item));
+        });
+
+        // Settings toggles
+        this.elements.settingsToggles.forEach(toggle => {
+            toggle.addEventListener('change', () => this.handleSettingsToggle(toggle));
+        });
+
+        // Game buttons
+        this.elements.gameButtons.forEach(button => {
+            button.addEventListener('click', () => this.handleGameButtonClick(button));
+        });
+
+        // Interactive minion
+        if (this.elements.interactiveMinion) {
+            this.elements.interactiveMinion.addEventListener('click', () => this.handleMinionClick());
+        }
+    }
+
+    handleMenuItemClick(item) {
+        const action = item.dataset.action;
+        switch (action) {
+            case 'invite':
+                this.inviteFriend();
+                break;
+            case 'settings':
+                this.toggleSettings();
+                break;
+            case 'help':
+                this.showHelp();
+                break;
+        }
+    }
+
+    handleSettingsToggle(toggle) {
+        const setting = toggle.dataset.setting;
+        const value = toggle.checked;
+        window.gameSettings[setting] = value;
+        localStorage.setItem('gameSettings', JSON.stringify(window.gameSettings));
+    }
+
+    handleGameButtonClick(button) {
+        const action = button.dataset.action;
+        if (action.startsWith('box-')) {
+            const boxType = action.replace('box-', '');
+            gameLogic.openBox(boxType);
+        }
+    }
+
+    handleMinionClick() {
+        const state = this.gameState.state;
+        this.gameState.update({
+            petCount: state.petCount + 1,
+            bananas: state.bananas + 1,
+            totalBananas: state.totalBananas + 1
+        });
+        
+        this.resourceManager.playSound('minionHappy');
+        if (window.gameSettings.vibrationEnabled) {
+            navigator.vibrate(50);
+        }
+        
+        this.showMinionAnimation();
+        this.checkPetAchievements();
+    }
+
+    showMinionAnimation() {
+        const minion = this.elements.interactiveMinion;
+        minion.classList.add('happy');
+        setTimeout(() => minion.classList.remove('happy'), 1000);
+    }
+
+    checkPetAchievements() {
+        const state = this.gameState.state;
+        if (state.petCount >= 10 && state.taskProgress.task1 < 1) {
+            this.gameState.update({
+                taskProgress: {
+                    ...state.taskProgress,
+                    task1: 1
+                }
+            });
+            gameLogic.completeTask(1);
+        }
+    }
+
+    updateAchievements() {
+        const state = this.gameState.state;
+        const achievements = [
+            { id: 1, text: 'Погладить миньона 10 раз', progress: state.petCount, target: 10 },
+            { id: 2, text: 'Собрать 100 бананов', progress: state.totalBananas, target: 100 },
+            { id: 3, text: 'Собрать 50 бананов за день', progress: state.bananas, target: 50 },
+            { id: 4, text: 'Собрать 10 звезд', progress: state.totalStars, target: 10 },
+            { id: 5, text: 'Открыть 5 коробок', progress: state.openedBoxes, target: 5 },
+            { id: 6, text: 'Достичь 3 уровня', progress: state.level, target: 3 },
+            { id: 7, text: 'Пригласить 3 друзей', progress: state.invitedFriends, target: 3 },
+            { id: 8, text: 'Собрать 20 звезд', progress: state.totalStars, target: 20 },
+            { id: 9, text: 'Собрать 30 звезд', progress: state.totalStars, target: 30 },
+            { id: 10, text: 'Собрать 200 бананов', progress: state.totalBananas, target: 200 }
+        ];
+
+        this.elements.achievementsList.innerHTML = achievements.map(achievement => `
+            <div class="achievement ${achievement.progress >= achievement.target ? 'completed' : ''}">
+                <span class="achievement-text">${achievement.text}</span>
+                <span class="achievement-progress">${achievement.progress}/${achievement.target}</span>
+            </div>
+        `).join('');
+    }
+
+    updateLevelProgress() {
+        const state = this.gameState.state;
+        const expNeeded = Math.floor(100 * Math.pow(1.5, state.level - 1));
+        const progress = (state.exp / expNeeded) * 100;
+        
+        this.elements.levelProgress.style.width = `${progress}%`;
+        this.elements.levelProgress.textContent = `Уровень ${state.level} (${state.exp}/${expNeeded})`;
+    }
+
+    showPopup(message, duration = 3000) {
+        const popup = this.elements.popupMessage;
+        popup.textContent = message;
+        popup.classList.add('show');
+        
+        setTimeout(() => {
+            popup.classList.remove('show');
+        }, duration);
+    }
+
+    showBoxAnimation(type, rewardText) {
+        const box = this.elements.boxAnimation;
+        box.innerHTML = `
+            <div class="box ${type}">
+                <div class="box-content">
+                    <img src="${this.resourceManager.getImage(`${type}-box`)}" alt="${type} box">
+                    <div class="reward-text">${rewardText}</div>
+                </div>
+            </div>
+        `;
+        
+        box.classList.add('show');
+        setTimeout(() => box.classList.remove('show'), 2000);
+    }
+
+    showLevelUpAnimation() {
+        const popup = document.createElement('div');
+        popup.className = 'level-up-popup';
+        popup.textContent = `Уровень ${this.gameState.state.level}!`;
+        document.body.appendChild(popup);
+        
+        setTimeout(() => popup.remove(), 2000);
+    }
+
+    showTaskCompletion(taskId, reward) {
+        const rewardText = this.getRewardText(reward);
+        this.showPopup(`Задание ${taskId} выполнено! Награда: ${rewardText}`);
+    }
+
+    getRewardText(reward) {
+        if (reward.type === 'bananas') {
+            return `${reward.amount} бананов`;
+        } else if (reward.type === 'stars') {
+            return `${reward.amount} звезд`;
+        } else if (reward.type === 'both') {
+            return `${reward.bananas} бананов и ${reward.stars} звезд`;
+        }
+        return '';
+    }
+
+    createConfetti() {
+        const container = this.elements.confettiContainer;
+        container.innerHTML = '';
+        
+        for (let i = 0; i < CONFIG.CONFETTI_COUNT; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.left = `${Math.random() * 100}%`;
+            confetti.style.animationDelay = `${Math.random() * 3}s`;
+            container.appendChild(confetti);
+        }
+        
+        setTimeout(() => container.innerHTML = '', 3000);
+    }
+
+    inviteFriend() {
+        if (window.Telegram.WebApp) {
+            window.Telegram.WebApp.share({
+                text: 'Присоединяйся к игре с миньонами!',
+                url: window.location.href
+            });
+            
+            const state = this.gameState.state;
+            this.gameState.update({
+                invitedFriends: state.invitedFriends + 1
+            });
+            
+            if (state.invitedFriends >= 3 && state.taskProgress.task7 < 1) {
+                this.gameState.update({
+                    taskProgress: {
+                        ...state.taskProgress,
+                        task7: 1
+                    }
+                });
+                gameLogic.completeTask(7);
+            }
+        }
+    }
+
+    toggleSettings() {
+        const settingsPanel = document.querySelector('.settings-panel');
+        settingsPanel.classList.toggle('show');
+    }
+
+    showHelp() {
+        this.showPopup('Поглаживайте миньона, собирайте бананы и звезды, открывайте коробки и выполняйте задания!');
+    }
+}
+
+// Game Logic Manager
+class GameLogicManager {
+    constructor(gameState, resourceManager, uiManager) {
+        this.gameState = gameState;
+        this.resourceManager = resourceManager;
+        this.uiManager = uiManager;
+    }
+
+    openBox(type) {
+        try {
+            const boxConfig = this.getBoxConfig(type);
+            if (!boxConfig) return false;
+
+            if (this.canOpenBox(type)) {
+                this.deductResources(type);
+                const reward = this.calculateReward(type);
+                this.applyReward(reward);
+                this.incrementBoxCount();
+                this.checkBoxTasks();
+                this.showBoxAnimation(type, reward.text);
+                return true;
+            } else {
+                this.showInsufficientResources();
+                return false;
+            }
+        } catch (error) {
+            console.error('Error opening box:', error);
+            return false;
+        }
+    }
+
+    getBoxConfig(type) {
+        const configs = {
+            simple: { cost: { bananas: 10 }, rewards: [
+                { type: 'bananas', amount: 5, text: '+5 бананов' },
+                { type: 'stars', amount: 1, text: '+1 звезда' },
+                { type: 'exp', amount: 5, text: '+5 опыта' }
+            ]},
+            standard: { cost: { bananas: 25 }, rewards: [
+                { type: 'bananas', amount: 15, text: '+15 бананов' },
+                { type: 'stars', amount: 3, text: '+3 звезды' },
+                { type: 'exp', amount: 10, text: '+10 опыта' }
+            ]},
+            premium: { cost: { stars: 5 }, rewards: [
+                { type: 'bananas', amount: 50, text: '+50 бананов' },
+                { type: 'stars', amount: 10, text: '+10 звезд' },
+                { type: 'exp', amount: 25, text: '+25 опыта' }
+            ]},
+            mega: { cost: { stars: 15 }, rewards: [
+                { type: 'bananas', amount: 100, text: '+100 бананов' },
+                { type: 'stars', amount: 20, text: '+20 звезд' },
+                { type: 'exp', amount: 50, text: '+50 опыта' }
+            ]}
+        };
+        return configs[type];
+    }
+
+    canOpenBox(type) {
+        const config = this.getBoxConfig(type);
+        if (!config) return false;
+
+        const { cost } = config;
+        return Object.entries(cost).every(([resource, amount]) => 
+            this.gameState.state[resource] >= amount
+        );
+    }
+
+    deductResources(type) {
+        const config = this.getBoxConfig(type);
+        if (!config) return;
+
+        const { cost } = config;
+        Object.entries(cost).forEach(([resource, amount]) => {
+            this.gameState.update({
+                [resource]: this.gameState.state[resource] - amount
+            });
+        });
+    }
+
+    calculateReward(type) {
+        const config = this.getBoxConfig(type);
+        if (!config) return null;
+
+        const randomIndex = Math.floor(Math.random() * config.rewards.length);
+        return config.rewards[randomIndex];
+    }
+
+    applyReward(reward) {
+        if (!reward) return;
+
+        const updates = {};
+        if (reward.type === 'bananas') {
+            updates.bananas = this.gameState.state.bananas + reward.amount;
+            updates.totalBananas = this.gameState.state.totalBananas + reward.amount;
+        } else if (reward.type === 'stars') {
+            updates.stars = this.gameState.state.stars + reward.amount;
+            updates.totalStars = this.gameState.state.totalStars + reward.amount;
+        } else if (reward.type === 'exp') {
+            this.addExperience(reward.amount);
+        }
+
+        if (Object.keys(updates).length > 0) {
+            this.gameState.update(updates);
+        }
+    }
+
+    incrementBoxCount() {
+        this.gameState.update({
+            openedBoxes: this.gameState.state.openedBoxes + 1
+        });
+    }
+
+    checkBoxTasks() {
+        const state = this.gameState.state;
+        if (state.openedBoxes >= 5 && state.taskProgress.task5 < 1) {
+            this.gameState.update({
+                taskProgress: {
+                    ...state.taskProgress,
+                    task5: 1
+                }
+            });
+            this.completeTask(5);
+        }
+    }
+
+    showBoxAnimation(type, rewardText) {
+        this.resourceManager.playSound('box');
+        if (window.gameSettings.vibrationEnabled) {
+            navigator.vibrate([100, 50, 200]);
+        }
+        this.uiManager.showBoxAnimation(type, rewardText);
+    }
+
+    showInsufficientResources() {
+        this.uiManager.showPopup('Недостаточно ресурсов!');
+        this.resourceManager.playSound('minionShocked');
+    }
+
+    addExperience(amount) {
+        const state = this.gameState.state;
+        const expNeeded = Math.floor(100 * Math.pow(1.5, state.level - 1));
+        let currentExp = state.exp || 0;
+        currentExp += amount;
+
+        if (currentExp >= expNeeded) {
+            // Level up
+            const newLevel = state.level + 1;
+            const remainingExp = currentExp - expNeeded;
+            
+            this.gameState.update({
+                level: newLevel,
+                exp: remainingExp,
+                bananas: state.bananas + (10 * newLevel),
+                totalBananas: state.totalBananas + (10 * newLevel),
+                stars: state.stars + Math.floor(newLevel / 2) + 1,
+                totalStars: state.totalStars + Math.floor(newLevel / 2) + 1
+            });
+
+            this.uiManager.showLevelUpAnimation();
+            
+            if (newLevel >= 3 && state.taskProgress.task6 < 1) {
+                this.gameState.update({
+                    taskProgress: {
+                        ...state.taskProgress,
+                        task6: 1
+                    }
+                });
+                this.completeTask(6);
+            }
+        } else {
+            this.gameState.update({ exp: currentExp });
+        }
+
+        this.uiManager.updateLevelProgress();
+    }
+
+    completeTask(taskId) {
+        const state = this.gameState.state;
+        if (state.taskProgress[`task${taskId}`] >= 1) return;
+
+        const reward = this.getTaskReward(taskId);
+        if (!reward) return;
+
+        this.gameState.update({
+            taskProgress: {
+                ...state.taskProgress,
+                [`task${taskId}`]: 1
+            },
+            completedTasks: state.completedTasks + 1,
+            ...this.calculateTaskReward(reward)
+        });
+
+        this.uiManager.showTaskCompletion(taskId, reward);
+        this.resourceManager.playSound('task');
+        if (window.gameSettings.vibrationEnabled) {
+            navigator.vibrate([100, 30, 100, 30, 100]);
+        }
+        this.uiManager.createConfetti();
+    }
+
+    getTaskReward(taskId) {
+        const rewards = {
+            1: { type: 'bananas', amount: 100 },
+            2: { type: 'bananas', amount: 50 },
+            3: { type: 'bananas', amount: 20 },
+            4: { type: 'stars', amount: 5 },
+            5: { type: 'stars', amount: 10 },
+            6: { type: 'stars', amount: 15 },
+            7: { type: 'both', bananas: 50, stars: 5 },
+            8: { type: 'stars', amount: 8 },
+            9: { type: 'stars', amount: 10 },
+            10: { type: 'bananas', amount: 150 }
+        };
+        return rewards[taskId];
+    }
+
+    calculateTaskReward(reward) {
+        if (reward.type === 'bananas') {
+            return {
+                bananas: this.gameState.state.bananas + reward.amount,
+                totalBananas: this.gameState.state.totalBananas + reward.amount
+            };
+        } else if (reward.type === 'stars') {
+            return {
+                stars: this.gameState.state.stars + reward.amount,
+                totalStars: this.gameState.state.totalStars + reward.amount
+            };
+        } else if (reward.type === 'both') {
+            return {
+                bananas: this.gameState.state.bananas + reward.bananas,
+                totalBananas: this.gameState.state.totalBananas + reward.bananas,
+                stars: this.gameState.state.stars + reward.stars,
+                totalStars: this.gameState.state.totalStars + reward.stars
+            };
+        }
+        return {};
+    }
+}
+
+// Initialize game components
+let gameStateManager, resourceManager, uiManager, gameLogic;
+
+// Initialize game
+async function initializeGame() {
+    try {
+        // Show loading screen
+        showLoadingScreen();
+
+        // Initialize managers
+        gameStateManager = new GameStateManager();
+        resourceManager = new ResourceManager();
+        uiManager = new UIManager(gameStateManager, resourceManager);
+        gameLogic = new GameLogicManager(gameStateManager, resourceManager, uiManager);
+
+        // Preload resources
+        await resourceManager.preloadResources(
+            updateLoadingProgress,
+            () => {
+                hideLoadingScreen();
+                startGame();
+            }
+        );
+    } catch (error) {
+        console.error('Error initializing game:', error);
+        showError('Ошибка при загрузке игры. Пожалуйста, попробуйте еще раз.');
+    }
+}
+
+// Loading screen functions
+function showLoadingScreen() {
+    const loadingScreen = document.createElement('div');
+    loadingScreen.className = 'loading-screen';
+    loadingScreen.innerHTML = `
+        <div class="loading-content">
+            <img src="${CONFIG.IMAGES.MINION}" alt="Loading..." class="loading-minion">
+            <div class="loading-text">Загрузка игры...</div>
+            <div class="loading-progress">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingScreen);
+}
+
+function updateLoadingProgress(progress) {
+    const progressBar = document.querySelector('.loading-progress .progress-bar');
+    if (progressBar) {
+        progressBar.style.width = `${progress}%`;
+    }
+}
+
+function hideLoadingScreen() {
+    const loadingScreen = document.querySelector('.loading-screen');
+    if (loadingScreen) {
+        loadingScreen.classList.add('fade-out');
+        setTimeout(() => loadingScreen.remove(), CONFIG.ANIMATION_DURATION);
+    }
+}
+
+function showError(message) {
+    const errorScreen = document.createElement('div');
+    errorScreen.className = 'error-screen';
+    errorScreen.innerHTML = `
+        <div class="error-content">
+            <img src="${CONFIG.IMAGES.MINION_SHOCKED}" alt="Error" class="error-minion">
+            <div class="error-text">${message}</div>
+            <button class="retry-button" onclick="location.reload()">Попробовать снова</button>
+        </div>
+    `;
+    document.body.appendChild(errorScreen);
+}
+
+// Start game
+function startGame() {
+    try {
+        // Initialize Telegram WebApp
+        if (window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+        }
+
+        // Set up auto-save
+        setInterval(() => gameStateManager.save(), CONFIG.SAVE_INTERVAL);
+
+        // Initialize UI
+        uiManager.updateAchievements();
+        uiManager.updateLevelProgress();
+
+        // Check daily reward
+        checkDailyReward();
+
+        // Add event listeners for visibility change
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Show welcome message
+        uiManager.showPopup('Добро пожаловать в игру с миньонами!');
+
+        // Export for debugging
+        window.gameState = gameStateManager;
+        window.ui = uiManager;
+        window.resources = resourceManager;
+        window.logic = gameLogic;
+    } catch (error) {
+        console.error('Error starting game:', error);
+        showError('Ошибка при запуске игры. Пожалуйста, попробуйте еще раз.');
+    }
+}
+
+// Handle visibility change
+function handleVisibilityChange() {
+    if (document.hidden) {
+        gameStateManager.save();
+    } else {
+        checkDailyReward();
+    }
+}
+
+// Check daily reward
+function checkDailyReward() {
+    const lastReward = localStorage.getItem('lastDailyReward');
+    const today = new Date().toDateString();
+
+    if (lastReward !== today) {
+        const state = gameStateManager.state;
+        gameStateManager.update({
+            bananas: state.bananas + 10,
+            totalBananas: state.totalBananas + 10,
+            stars: state.stars + 1,
+            totalStars: state.totalStars + 1
+        });
+
+        localStorage.setItem('lastDailyReward', today);
+        uiManager.showPopup('Ежедневная награда: 10 бананов и 1 звезда!');
+        resourceManager.playSound('reward');
+    }
+}
+
+// Start the game when the page loads
+document.addEventListener('DOMContentLoaded', initializeGame);
+
+// Handle errors
+window.onerror = function(message, source, lineno, colno, error) {
+    console.error('Game error:', { message, source, lineno, colno, error });
+    showError('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
+    return false;
+};
+
 // Инициализация интерактивного миньона
 function initInteractiveMinion() {
     try {
         const minion = document.getElementById('interactive-minion');
-        
-        if (!minion) {
-            console.warn("Элемент миньона не найден");
-            return;
-        }
-        
-        // Обработчик нажатия на миньона
-        minion.addEventListener('click', () => {
-            // Проигрываем анимацию нажатия
-            minion.classList.add('pet-animation');
-            setTimeout(() => {
-                minion.classList.remove('pet-animation');
-            }, 500);
+        if (!minion) return;
+
+        let petCount = 0;
+        const maxPets = 5;
+        let lastPetTime = 0;
+        const petCooldown = 500; // 500ms cooldown between pets
+
+        minion.addEventListener('click', function(e) {
+            const now = Date.now();
+            if (now - lastPetTime < petCooldown) return;
+            lastPetTime = now;
+
+            petCount = (petCount + 1) % maxPets;
             
-            // Увеличиваем счетчик поглаживаний
-            gameState.petCount++;
+            // Increase pet count
+            gameStateManager.update({
+                petCount: gameStateManager.state.petCount + 1
+            });
             
-            // Выдаем банан каждые 5 поглаживаний
-            if (gameState.petCount % 5 === 0) {
-                gameState.bananas++;
-                gameState.totalBananas++;
+            // Give banana every 5 pets
+            if (gameStateManager.state.petCount % 5 === 0) {
+                gameStateManager.update({
+                    bananas: gameStateManager.state.bananas + 1,
+                    totalBananas: gameStateManager.state.totalBananas + 1
+                });
                 showPopup('+1 банан за заботу о миньоне!');
-                updateStats();
-                saveGameState();
+                uiManager.updateStats();
                 
-                // Проверяем задания на "кормление миньонов"
-                if (gameState.petCount >= 25 && gameState.taskProgress.task3 < 5) {
-                    gameState.taskProgress.task3 = Math.min(5, Math.floor(gameState.petCount / 5));
-                    updateTaskProgress();
+                // Check minion feeding task
+                if (gameStateManager.state.petCount >= 25 && gameStateManager.state.taskProgress.task3 < 5) {
+                    gameStateManager.update({
+                        taskProgress: {
+                            ...gameStateManager.state.taskProgress,
+                            task3: Math.min(5, Math.floor(gameStateManager.state.petCount / 5))
+                        }
+                    });
+                    uiManager.updateTaskProgress();
                     
-                    if (gameState.taskProgress.task3 >= 5) {
+                    if (gameStateManager.state.taskProgress.task3 >= 5) {
                         completeTask(3);
                     }
                 }
             }
-            
-            // Проигрываем один из случайных звуков миньона
-            const sounds = ['minionHappy', 'minionJump'];
-            const randomSound = sounds[Math.floor(Math.random() * sounds.length)];
-            playSound(randomSound);
-            
-            // Небольшая вибрация
-            vibrate(30);
+
+            // Animation
+            minion.classList.add('pet-animation');
+            setTimeout(() => minion.classList.remove('pet-animation'), 500);
+
+            // Sound and vibration
+            resourceManager.playSound('minionHappy');
+            if (window.gameSettings.vibrationEnabled) {
+                navigator.vibrate(50);
+            }
         });
-        
-        console.log("Интерактивный миньон инициализирован");
     } catch (error) {
-        console.error("Ошибка при инициализации интерактивного миньона:", error);
+        console.error('Error initializing interactive minion:', error);
     }
 }
 
@@ -57,109 +1031,97 @@ function initInteractiveMinion() {
 function updateAchievements() {
     try {
         const achievementsList = document.getElementById('achievements-list');
-        if (!achievementsList) {
-            console.warn("Список достижений не найден");
-            return;
-        }
-        
+        if (!achievementsList) return;
+
         achievementsList.innerHTML = '';
         
-        // Проверяем новые достижения
-        checkAchievements();
-        
-        // Отображаем все имеющиеся достижения
-        gameState.achievements.forEach(achievement => {
+        // Display all achievements
+        gameStateManager.state.achievements.forEach(achievement => {
             const item = document.createElement('div');
             item.className = 'achievement-item';
             item.textContent = achievement;
             achievementsList.appendChild(item);
         });
-        
-        // Проверяем задание на получение 5 достижений
-        if (gameState.achievements.length >= 5 && gameState.taskProgress.task7 < 1) {
-            gameState.taskProgress.task7 = 1;
+
+        // Check for 5 achievements task
+        if (gameStateManager.state.achievements.length >= 5 && gameStateManager.state.taskProgress.task7 < 1) {
+            gameStateManager.update({
+                taskProgress: {
+                    ...gameStateManager.state.taskProgress,
+                    task7: 1
+                }
+            });
             completeTask(7);
         }
-    } catch (error) {
-        console.error("Ошибка при обновлении достижений:", error);
-    }
-}
 
-// Проверка новых достижений
-function checkAchievements() {
-    try {
+        // Define achievements
         const achievements = [
             { id: 'beginner', title: 'Начинающий миньоновод', condition: () => true },
-            { id: 'collector', title: 'Банановый коллекционер', condition: () => gameState.totalBananas >= 50 },
-            { id: 'star_gatherer', title: 'Звездочёт', condition: () => gameState.totalStars >= 15 },
-            { id: 'box_opener', title: 'Распаковщик', condition: () => gameState.openedBoxes >= 10 },
-            { id: 'box_master', title: 'Мастер кейсов', condition: () => gameState.openedBoxes >= 25 },
-            { id: 'task_master', title: 'Исполнительный миньон', condition: () => gameState.completedTasks >= 5 },
-            { id: 'minion_friend', title: 'Друг миньонов', condition: () => gameState.petCount >= 50 },
-            { id: 'minion_lover', title: 'Заботливый хозяин', condition: () => gameState.petCount >= 100 },
-            { id: 'invite_king', title: 'Социальная бабочка', condition: () => gameState.invitedFriends >= 5 },
-            { id: 'daily_master', title: 'Постоянный игрок', condition: () => gameState.activeDays >= 7 },
-            { id: 'streak_master', title: 'Верный миньон', condition: () => gameState.streak >= 3 },
-            { id: 'high_level', title: 'Опытный миньоновод', condition: () => gameState.level >= 5 }
+            { id: 'collector', title: 'Банановый коллекционер', condition: () => gameStateManager.state.totalBananas >= 50 },
+            { id: 'star_gatherer', title: 'Звездочёт', condition: () => gameStateManager.state.totalStars >= 15 },
+            { id: 'box_opener', title: 'Распаковщик', condition: () => gameStateManager.state.openedBoxes >= 10 },
+            { id: 'box_master', title: 'Мастер кейсов', condition: () => gameStateManager.state.openedBoxes >= 25 },
+            { id: 'task_master', title: 'Исполнительный миньон', condition: () => gameStateManager.state.completedTasks >= 5 },
+            { id: 'minion_friend', title: 'Друг миньонов', condition: () => gameStateManager.state.petCount >= 50 },
+            { id: 'minion_lover', title: 'Заботливый хозяин', condition: () => gameStateManager.state.petCount >= 100 },
+            { id: 'invite_king', title: 'Социальная бабочка', condition: () => gameStateManager.state.invitedFriends >= 5 },
+            { id: 'daily_master', title: 'Постоянный игрок', condition: () => gameStateManager.state.activeDays >= 7 },
+            { id: 'streak_master', title: 'Верный миньон', condition: () => gameStateManager.state.streak >= 3 },
+            { id: 'high_level', title: 'Опытный миньоновод', condition: () => gameStateManager.state.level >= 5 }
         ];
-        
-        // Проверяем и добавляем новые достижения
+
+        // Check and add new achievements
         achievements.forEach(achievement => {
-            if (achievement.condition() && !gameState.achievements.includes(achievement.title)) {
-                gameState.achievements.push(achievement.title);
+            if (achievement.condition() && !gameStateManager.state.achievements.includes(achievement.title)) {
+                gameStateManager.update({
+                    achievements: [...gameStateManager.state.achievements, achievement.title]
+                });
                 
-                // Показываем уведомление о новом достижении
+                // Show achievement notification
                 showPopup(`Новое достижение: ${achievement.title}!`);
-                
-                // Звук и вибрация
-                playSound('achievement');
-                vibrate([100, 30, 100, 30, 200]);
+                resourceManager.playSound('achievement');
+                if (window.gameSettings.vibrationEnabled) {
+                    navigator.vibrate([100, 50, 100]);
+                }
             }
         });
-    } catch (e) {
-        console.error('Ошибка при проверке достижений:', e);
+    } catch (error) {
+        console.error('Error updating achievements:', error);
     }
 }
 
 // Функция приглашения друзей
 function inviteFriend() {
-    console.log("Приглашение друга");
-    
     try {
-        // Если приложение запущено в Telegram, используем его функционал
-        if (tg) {
-            try {
-                tg.shareGame('minions_game_bot');
-            } catch (e) {
-                console.error('Ошибка при вызове shareGame:', e);
-                // Если shareGame не работает, пробуем показать сообщение
-                if (tg.showAlert) {
-                    tg.showAlert('Приглашение отправлено!');
+        if (window.tg) {
+            window.tg.share({
+                text: 'Присоединяйся к игре с миньонами!',
+                url: window.location.href
+            });
+            
+            // Increase invited friends counter
+            gameStateManager.update({
+                invitedFriends: gameStateManager.state.invitedFriends + 1,
+                taskProgress: {
+                    ...gameStateManager.state.taskProgress,
+                    task1: Math.min(10, gameStateManager.state.invitedFriends + 1)
                 }
-            }
+            });
             
-            // Увеличиваем счетчик приглашенных друзей
-            gameState.invitedFriends++;
+            uiManager.updateTaskProgress();
             
-            // Обновляем прогресс задания
-            gameState.taskProgress.task1 = Math.min(10, gameState.invitedFriends);
-            updateTaskProgress();
-            
-            // Проверяем выполнение задания
-            if (gameState.invitedFriends >= 10 && gameState.taskProgress.task1 < 1) {
+            // Check task completion
+            if (gameStateManager.state.invitedFriends >= 10 && gameStateManager.state.taskProgress.task1 < 1) {
                 completeTask(1);
             }
             
-            // Обновляем статистику и сохраняем
-            updateStats();
-            saveGameState();
-        } else {
-            // Если вне Telegram, показываем уведомление
-            showPopup('Эта функция доступна только в Telegram!');
+            resourceManager.playSound('task');
+            if (window.gameSettings.vibrationEnabled) {
+                navigator.vibrate(50);
+            }
         }
-    } catch (e) {
-        console.error('Ошибка при приглашении друга:', e);
-        showPopup('Не удалось пригласить друга. Пожалуйста, попробуйте позже.');
+    } catch (error) {
+        console.error('Error inviting friend:', error);
     }
 }
 
@@ -169,14 +1131,16 @@ function spinWheel() {
     
     try {
         // Проверяем, достаточно ли звезд
-        if (gameState.stars < 3) {
+        if (gameStateManager.state.stars < 3) {
             showPopup('Недостаточно звезд! Требуется 3 звезды.');
-            playSound('minionShocked');
+            resourceManager.playSound('minionShocked');
             return;
         }
         
         // Списываем звезды
-        gameState.stars -= 3;
+        gameStateManager.update({
+            stars: gameStateManager.state.stars - 3
+        });
         
         // Получаем случайный сектор (от 1 до 8)
         const sector = Math.floor(Math.random() * 8) + 1;
@@ -211,8 +1175,10 @@ function spinWheel() {
             wheel.style.transform = `rotate(${finalAngle}deg)`;
             
             // Звуковой эффект и вибрация
-            playSound('wheel');
-            vibrate([50, 50, 50, 50, 50, 50]);
+            resourceManager.playSound('wheel');
+            if (window.gameSettings.vibrationEnabled) {
+                navigator.vibrate([50, 50, 50, 50, 50, 50]);
+            }
             
             // Выдаем награду после остановки колеса
             setTimeout(() => {
@@ -272,11 +1238,15 @@ function processWheelReward(sector) {
         
         // Применяем награду
         if (reward.type === 'bananas') {
-            gameState.bananas += reward.amount;
-            gameState.totalBananas += reward.amount;
+            gameStateManager.update({
+                bananas: gameStateManager.state.bananas + reward.amount,
+                totalBananas: gameStateManager.state.totalBananas + reward.amount
+            });
         } else if (reward.type === 'stars') {
-            gameState.stars += reward.amount;
-            gameState.totalStars += reward.amount;
+            gameStateManager.update({
+                stars: gameStateManager.state.stars + reward.amount,
+                totalStars: gameStateManager.state.totalStars + reward.amount
+            });
         } else if (reward.type === 'exp') {
             addExperience(reward.amount);
         }
@@ -292,14 +1262,16 @@ function processWheelReward(sector) {
         }
         
         // Звуковой эффект и вибрация для награды
-        playSound('reward');
-        vibrate([200]);
+        resourceManager.playSound('reward');
+        if (window.gameSettings.vibrationEnabled) {
+            navigator.vibrate([200]);
+        }
         
         // Создаем эффект конфетти
         createConfetti();
         
         // Обновляем статистику и сохраняем
-        updateStats();
+        uiManager.updateStats();
         saveGameState();
     } catch (e) {
         console.error('Ошибка при обработке награды колеса фортуны:', e);
@@ -395,7 +1367,9 @@ window.addEventListener('beforeunload', function() {
     } catch (e) {
         console.error('Ошибка при закрытии страницы:', e);
     }
-});// Функция для обработки ошибок без блокировки приложения
+});
+
+// Функция для обработки ошибок без блокировки приложения
 function handleError(message, error) {
     console.error(message, error);
     
@@ -592,1060 +1566,6 @@ function vibrate(pattern) {
     }
 }
 
-// Игровое состояние
-let gameState = {
-    bananas: 0,
-    stars: 0,
-    level: 1,
-    completedTasks: 0,
-    openedBoxes: 0,
-    totalBananas: 0,
-    totalStars: 0,
-    activeDays: 1,
-    streak: 0,
-    lastReward: null,
-    invitedFriends: 0,
-    lastSaveTime: Date.now(),
-    petCount: 0, // Счетчик поглаживаний миньона
-    achievements: ['Начинающий миньоновод'],
-    taskProgress: {
-        task1: 0, // Приглашение друзей
-        task2: 0, // Открытие премиум-кейса
-        task3: 0, // Кормление миньонов
-        task4: 0, // Сбор 30 бананов
-        task5: 0, // Открытие 5 боксов
-        task6: 0, // Достижение 3 уровня
-        task7: 0, // Получение 5 достижений
-        task8: 0, // Серия входов 5 дней подряд
-        task9: 0, // Собрать 100 бананов
-        task10: 0 // Накопить 20 звезд
-    }
-};
-
 // Серверный URL для синхронизации прогресса
 const SERVER_URL = 'https://minions-game-server.glitch.me/api';
 
-// Функция для синхронизации с сервером
-async function syncWithServer() {
-    if (!settings.serverSync || !settings.userId) return;
-    
-    try {
-        const response = await fetch(`${SERVER_URL}/save-progress`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                userId: settings.userId,
-                gameState: gameState
-            })
-        });
-        
-        if (response.ok) {
-            console.log("Прогресс успешно синхронизирован с сервером");
-            gameState.lastSaveTime = Date.now();
-        } else {
-            console.error("Ошибка при синхронизации с сервером:", await response.text());
-        }
-    } catch (error) {
-        console.error("Ошибка сети при синхронизации:", error);
-    }
-}
-
-// Загрузка данных с сервера
-async function loadFromServer() {
-    if (!settings.serverSync || !settings.userId) return false;
-    
-    try {
-        const response = await fetch(`${SERVER_URL}/load-progress/${settings.userId}`);
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.gameState) {
-                gameState = {...gameState, ...data.gameState};
-                console.log("Прогресс успешно загружен с сервера");
-                return true;
-            }
-        } else {
-            console.error("Ошибка при загрузке с сервера:", await response.text());
-        }
-    } catch (error) {
-        console.error("Ошибка сети при загрузке:", error);
-    }
-    
-    return false;
-}
-
-// Загрузка данных из localStorage
-function loadGameState() {
-    try {
-        const savedState = localStorage.getItem('minionsGameState');
-        if (savedState) {
-            const parsed = JSON.parse(savedState);
-            gameState = {...gameState, ...parsed};
-            
-            // Проверка на ежедневный вход
-            checkDailyLogin();
-            
-            console.log("Состояние игры загружено из localStorage");
-            return true;
-        }
-    } catch (e) {
-        console.error('Ошибка при загрузке сохраненных данных:', e);
-    }
-    return false;
-}
-
-// Сохранение данных в localStorage
-function saveGameState() {
-    try {
-        localStorage.setItem('minionsGameState', JSON.stringify(gameState));
-        console.log("Состояние игры сохранено в localStorage");
-        
-        // Если прошло более 5 минут с последнего сохранения, синхронизируем с сервером
-        if (Date.now() - gameState.lastSaveTime > 5 * 60 * 1000) {
-            syncWithServer();
-        }
-    } catch (e) {
-        console.error('Ошибка при сохранении игрового состояния:', e);
-    }
-}
-
-// Уникальный идентификатор сессии
-const sessionId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-
-// Проверка ежедневного входа
-function checkDailyLogin() {
-    try {
-        const today = new Date().toDateString();
-        
-        if (gameState.lastReward !== today) {
-            // Показываем награду
-            const dailyRewardContainer = document.getElementById('daily-reward-container');
-            if (dailyRewardContainer) {
-                dailyRewardContainer.style.display = 'block';
-            }
-            
-            // Если последний вход был вчера, увеличиваем серию
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayString = yesterday.toDateString();
-            
-            if (gameState.lastReward === yesterdayString) {
-                gameState.streak++;
-                
-                // Проверяем задание на серию входов
-                if (gameState.streak >= 5 && gameState.taskProgress.task8 < 1) {
-                    gameState.taskProgress.task8 = 1;
-                    completeTask(8);
-                }
-            } else if (gameState.lastReward) {
-                // Сбрасываем серию, если был пропуск
-                gameState.streak = 0;
-            }
-            
-            // Увеличиваем счетчик активных дней
-            gameState.activeDays++;
-            
-            // Обновляем счетчик серии
-            const streakCount = document.getElementById('streak-count');
-            if (streakCount) {
-                streakCount.textContent = gameState.streak;
-            }
-        } else {
-            // Скрываем награду, если уже забрали сегодня
-            const dailyRewardContainer = document.getElementById('daily-reward-container');
-            if (dailyRewardContainer) {
-                dailyRewardContainer.style.display = 'none';
-            }
-        }
-    } catch (e) {
-        console.error('Ошибка при проверке ежедневного входа:', e);
-    }
-}
-
-// Получение ежедневной награды
-function claimDailyReward() {
-    try {
-        const today = new Date().toDateString();
-        
-        // Награда зависит от длины серии посещений
-        let bananaReward = 5 + (gameState.streak * 2);
-        let starReward = Math.floor(gameState.streak / 3) + 1;
-        
-        gameState.bananas += bananaReward;
-        gameState.stars += starReward;
-        gameState.totalBananas += bananaReward;
-        gameState.totalStars += starReward;
-        
-        // Запоминаем дату получения
-        gameState.lastReward = today;
-        
-        // Скрываем блок награды
-        const dailyRewardContainer = document.getElementById('daily-reward-container');
-        if (dailyRewardContainer) {
-            dailyRewardContainer.style.display = 'none';
-        }
-        
-        // Проверяем задания на сбор бананов и звезд
-        checkResourceTasks();
-        
-        // Показываем анимацию и оповещение
-        const rewardAnimation = document.getElementById('reward-animation');
-        if (rewardAnimation) {
-            rewardAnimation.innerHTML = '🎁';
-        }
-        
-        showPopup(`Ежедневная награда: +${bananaReward} бананов, +${starReward} звезд!`);
-        
-        // Звуковой эффект и вибрация
-        playSound('reward');
-        vibrate([100, 50, 100]);
-        
-        // Создаем эффект конфетти
-        createConfetti();
-        
-        // Обновляем статистику
-        updateStats();
-        saveGameState();
-        
-        console.log(`Ежедневная награда получена: +${bananaReward} бананов, +${starReward} звезд`);
-    } catch (e) {
-        console.error('Ошибка при получении ежедневной награды:', e);
-    }
-}
-
-// Инициализация
-async function init() {
-    console.log("Инициализация приложения");
-    
-    try {
-        // Проверяем наличие элемента экрана загрузки
-        const splashScreen = document.getElementById('splash-screen');
-        if (splashScreen) {
-            splashScreen.style.display = 'flex';
-        } else {
-            console.warn('Элемент splash-screen не найден');
-        }
-        
-        // Загружаем настройки
-        try {
-            loadSettings();
-        } catch (e) {
-            console.error('Ошибка при загрузке настроек, используем значения по умолчанию', e);
-        }
-        
-        // Предзагрузка изображений
-        try {
-            preloadImages();
-        } catch (e) {
-            console.error('Ошибка при предзагрузке изображений', e);
-        }
-        
-        // Если приложение запущено в Telegram, получаем идентификатор пользователя
-        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            try {
-                const user = tg.initDataUnsafe.user;
-                settings.userId = user.id.toString();
-                
-                const userNameElement = document.getElementById('user-name');
-                if (userNameElement) {
-                    userNameElement.textContent = user.username || 'Игрок';
-                }
-                
-                // Включаем синхронизацию
-                settings.serverSync = true;
-                saveSettings();
-                
-                // Пробуем загрузить данные с сервера
-                let serverLoaded = false;
-                try {
-                    serverLoaded = await loadFromServer();
-                } catch (e) {
-                    console.error('Ошибка при загрузке с сервера', e);
-                }
-                
-                // Если не удалось загрузить с сервера, пробуем из localStorage
-                if (!serverLoaded) {
-                    try {
-                        loadGameState();
-                    } catch (e) {
-                        console.error('Ошибка при загрузке из localStorage', e);
-                    }
-                }
-            } catch (e) {
-                console.error('Ошибка при обработке данных Telegram', e);
-            }
-        } else {
-            const userNameElement = document.getElementById('user-name');
-            if (userNameElement) {
-                userNameElement.textContent = 'Игрок';
-            }
-            
-            try {
-                loadGameState();
-            } catch (e) {
-                console.error('Ошибка при загрузке игрового состояния', e);
-            }
-        }
-        
-        // Обновляем статистику и прогресс
-        try {
-            updateStats();
-            updateTaskProgress();
-        } catch (e) {
-            console.error('Ошибка при обновлении статистики', e);
-        }
-        
-        // Инициализация UI
-        try {
-            initializeUI();
-        } catch (e) {
-            console.error('Ошибка при инициализации UI', e);
-        }
-        
-        // Гарантированно закрываем экран загрузки через 2 секунды
-        setTimeout(function() {
-            try {
-                if (splashScreen) {
-                    splashScreen.style.opacity = 0;
-                    setTimeout(function() {
-                        splashScreen.style.display = 'none';
-                        
-                        // Показываем первую секцию
-                        showSection('tasks-section');
-                    }, 500);
-                    
-                    // Проигрываем приветственный звук
-                    playSound('task');
-                } else {
-                    showSection('tasks-section');
-                }
-            } catch (e) {
-                // Критическая ошибка - напрямую скрываем экран загрузки и показываем сообщение
-                if (splashScreen) splashScreen.style.display = 'none';
-                handleError('Критическая ошибка при инициализации интерфейса', e);
-            }
-        }, 2000);
-        
-        console.log("Инициализация приложения завершена");
-    } catch (error) {
-        // Общий обработчик ошибок
-        handleError("Ошибка при инициализации приложения", error);
-    }
-}
-
-// Инициализация UI-элементов 
-function initializeUI() {
-    try {
-        // Добавляем обработчик для ежедневной награды
-        const dailyRewardBtn = document.getElementById('daily-reward-btn');
-        if (dailyRewardBtn) {
-            dailyRewardBtn.addEventListener('click', claimDailyReward);
-        }
-        
-        // Добавляем обработчики для кнопок меню
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const sectionId = this.getAttribute('data-section');
-                if (sectionId) {
-                    playSound('click');
-                    vibrate(30);
-                    showSection(sectionId);
-                }
-            });
-        });
-        
-        // Добавляем обработчики для кнопок настроек
-        const soundToggle = document.getElementById('sound-toggle');
-        if (soundToggle) {
-            soundToggle.innerHTML = settings.soundEnabled ? '🔊' : '🔇';
-            soundToggle.addEventListener('click', function() {
-                settings.soundEnabled = !settings.soundEnabled;
-                this.innerHTML = settings.soundEnabled ? '🔊' : '🔇';
-                saveSettings();
-                if (settings.soundEnabled) playSound('click');
-            });
-        }
-        
-        const vibrationToggle = document.getElementById('vibration-toggle');
-        if (vibrationToggle) {
-            vibrationToggle.innerHTML = settings.vibrationEnabled ? '📳' : '📴';
-            vibrationToggle.addEventListener('click', function() {
-                settings.vibrationEnabled = !settings.vibrationEnabled;
-                this.innerHTML = settings.vibrationEnabled ? '📳' : '📴';
-                saveSettings();
-                if (settings.vibrationEnabled) vibrate(50);
-                if (settings.soundEnabled) playSound('click');
-            });
-        }
-        
-        // Добавляем обработчики для кнопок в других секциях
-        const inviteButton = document.getElementById('invite-button');
-        if (inviteButton) {
-            inviteButton.addEventListener('click', inviteFriend);
-        }
-        
-        // Добавляем обработчики для открытия боксов
-        document.querySelectorAll('.box').forEach(box => {
-            const boxType = box.getAttribute('data-type');
-            if (boxType) {
-                box.addEventListener('click', function() {
-                    openBox(boxType);
-                });
-            }
-        });
-        
-        // Инициализация кнопки для колеса фортуны
-        const wheelButton = document.getElementById('wheel-button');
-        if (wheelButton) {
-            wheelButton.addEventListener('click', spinWheel);
-        }
-        
-        // Инициализация интерактивного миньона
-        initInteractiveMinion();
-    } catch (e) {
-        console.error('Ошибка при инициализации UI:', e);
-    }
-}
-
-// Проверка заданий на сбор ресурсов
-function checkResourceTasks() {
-    try {
-        // Задание 4: Собери 30 бананов
-        if (gameState.totalBananas >= 30 && gameState.taskProgress.task4 < 1) {
-            gameState.taskProgress.task4 = 1;
-            completeTask(4);
-        }
-        
-        // Задание 9: Собери 100 бананов
-        if (gameState.totalBananas >= 100 && gameState.taskProgress.task9 < 1) {
-            gameState.taskProgress.task9 = 1;
-            completeTask(9);
-        }
-        
-        // Задание 10: Накопи 20 звезд
-        if (gameState.totalStars >= 20 && gameState.taskProgress.task10 < 1) {
-            gameState.taskProgress.task10 = 1;
-            completeTask(10);
-        }
-    } catch (e) {
-        console.error('Ошибка при проверке заданий на сбор ресурсов:', e);
-    }
-}
-
-// Обновление статистики
-function updateStats() {
-    try {
-        // Безопасно обновляем элементы интерфейса
-        const updateElement = (id, value) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = value;
-            }
-        };
-        
-        updateElement('bananas', gameState.bananas);
-        updateElement('stars', gameState.stars);
-        updateElement('level', gameState.level);
-        updateElement('profile-level', gameState.level);
-        updateElement('total-bananas', gameState.totalBananas);
-        updateElement('total-stars', gameState.totalStars);
-        updateElement('completed-tasks', gameState.completedTasks);
-        updateElement('opened-boxes', gameState.openedBoxes);
-        updateElement('invited-friends', gameState.invitedFriends);
-        updateElement('active-days', gameState.activeDays);
-        
-        // Обновляем прогресс уровня если элемент существует
-        updateLevelProgress();
-        
-        // Обновляем достижения и проверяем задания
-        updateAchievements();
-        checkResourceTasks();
-    } catch (error) {
-        console.error("Ошибка при обновлении статистики:", error);
-    }
-}
-
-// Обновление прогресса заданий
-function updateTaskProgress() {
-    try {
-        // Задание 1: Пригласи 10 друзей
-        updateTaskProgressUI(1, gameState.taskProgress.task1, 10);
-        
-        // Задание 2: Открой премиум-кейс
-        updateTaskProgressUI(2, gameState.taskProgress.task2, 1);
-        
-        // Задание 3: Накорми 5 миньонов
-        updateTaskProgressUI(3, gameState.taskProgress.task3, 5);
-        
-        // Задание 4: Собери 30 бананов
-        updateTaskProgressUI(4, Math.min(gameState.totalBananas, 30), 30);
-        
-        // Задание 5: Открой 5 боксов
-        updateTaskProgressUI(5, Math.min(gameState.openedBoxes, 5), 5);
-        
-        // Задание 6: Достигни 3 уровня
-        updateTaskProgressUI(6, Math.min(gameState.level, 3), 3);
-        
-        // Задание 7: Получи 5 достижений
-        updateTaskProgressUI(7, Math.min(gameState.achievements.length, 5), 5);
-        
-        // Задание 8: Серия входов 5 дней подряд
-        updateTaskProgressUI(8, Math.min(gameState.streak, 5), 5);
-        
-        // Задание 9: Собери 100 бананов
-        updateTaskProgressUI(9, Math.min(gameState.totalBananas, 100), 100);
-        
-        // Задание 10: Накопи 20 звезд
-        updateTaskProgressUI(10, Math.min(gameState.totalStars, 20), 20);
-    } catch (error) {
-        console.error("Ошибка при обновлении прогресса заданий:", error);
-    }
-}
-
-// Обновление UI прогресса задания
-function updateTaskProgressUI(taskId, current, total) {
-    try {
-        const progressBar = document.getElementById(`task${taskId}-progress`);
-        const counter = document.getElementById(`task${taskId}-counter`);
-        
-        if (progressBar) {
-            progressBar.style.width = `${(current / total) * 100}%`;
-        }
-        
-        if (counter) {
-            counter.textContent = `${current}/${total}`;
-        }
-    } catch (error) {
-        console.error(`Ошибка при обновлении UI задания ${taskId}:`, error);
-    }
-}
-
-// Проверка элементов DOM перед их использованием
-function domElementExists(id) {
-    return document.getElementById(id) !== null;
-}
-// Показать секцию
-function showSection(sectionId) {
-    console.log("Переключение на секцию:", sectionId);
-    
-    try {
-        // Список всех возможных секций
-        const sections = [
-            'tasks-section',
-            'boxes-section',
-            'friends-section',
-            'profile-section',
-            'settings-section'
-        ];
-        
-        // Проверяем, существует ли запрашиваемая секция
-        const targetSection = document.getElementById(sectionId);
-        if (!targetSection) {
-            console.warn(`Секция ${sectionId} не найдена`);
-            
-            // Если секция не найдена, показываем первую доступную секцию
-            let fallbackSection = null;
-            for (const section of sections) {
-                const sectionElement = document.getElementById(section);
-                if (sectionElement) {
-                    fallbackSection = sectionElement;
-                    sectionId = section;
-                    break;
-                }
-            }
-            
-            if (!fallbackSection) {
-                showErrorPopup("Не найдены секции для отображения!");
-                return;
-            }
-        }
-        
-        // Принудительно скрываем все секции
-        for (const section of sections) {
-            const sectionElement = document.getElementById(section);
-            if (sectionElement) {
-                sectionElement.style.display = 'none';
-                sectionElement.classList.add('hidden-section');
-                sectionElement.classList.remove('active-section');
-            }
-        }
-        
-        // Принудительно показываем выбранную секцию и применяем классы
-        const sectionToShow = document.getElementById(sectionId);
-        if (sectionToShow) {
-            sectionToShow.style.display = 'block';
-            sectionToShow.classList.remove('hidden-section');
-            sectionToShow.classList.add('active-section');
-        }
-        
-        // Обновляем активный пункт меню
-        const menuItems = document.querySelectorAll('.menu-item');
-        menuItems.forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        // Находим кнопку, связанную с этой секцией и активируем ее
-        const clickedButton = Array.from(menuItems).find(item => {
-            return item.getAttribute('data-section') === sectionId;
-        });
-        
-        if (clickedButton) {
-            clickedButton.classList.add('active');
-        }
-    } catch (error) {
-        console.error("Ошибка при переключении секции:", error);
-        
-        // В случае ошибки просто покажем что-нибудь
-        const sections = document.querySelectorAll('[id$="-section"]');
-        sections.forEach(section => {
-            section.style.display = 'none';
-        });
-        
-        const firstSection = document.querySelector('[id$="-section"]');
-        if (firstSection) {
-            firstSection.style.display = 'block';
-        }
-    }
-}
-// Выполнение задания
-function completeTask(taskId) {
-    console.log("Выполнение задания:", taskId);
-    
-    try {
-        // Проверяем, не выполнено ли уже задание
-        if (gameState.taskProgress[`task${taskId}`] >= 1) {
-            return;
-        }
-        
-        let reward = {};
-        
-        switch(taskId) {
-            case 1: // Пригласи 10 друзей
-                if (gameState.taskProgress.task1 >= 10) {
-                    gameState.taskProgress.task1 = 1;
-                    reward = { type: 'bananas', amount: 100 };
-                }
-                break;
-                
-            case 2: // Открой премиум-кейс
-                reward = { type: 'bananas', amount: 50 };
-                break;
-                
-            case 3: // Накорми 5 миньонов
-                if (gameState.taskProgress.task3 >= 5) {
-                    gameState.taskProgress.task3 = 1;
-                    reward = { type: 'bananas', amount: 20 };
-                }
-                break;
-                
-            case 4: // Собери 30 бананов
-                reward = { type: 'stars', amount: 5 };
-                break;
-                
-            case 5: // Открой 5 боксов
-                reward = { type: 'stars', amount: 10 };
-                break;
-                
-            case 6: // Достигни 3 уровня
-                reward = { type: 'stars', amount: 15 };
-                break;
-                
-            case 7: // Получи 5 достижений
-                reward = { type: 'both', bananas: 50, stars: 5 };
-                break;
-                
-            case 8: // Серия входов 5 дней подряд
-                reward = { type: 'stars', amount: 8 };
-                break;
-                
-            case 9: // Собери 100 бананов
-                reward = { type: 'stars', amount: 10 };
-                break;
-                
-            case 10: // Накопи 20 звезд
-                reward = { type: 'bananas', amount: 150 };
-                break;
-        }
-        
-        // Отмечаем задание как выполненное
-        gameState.taskProgress[`task${taskId}`] = 1;
-        gameState.completedTasks++;
-        
-        // Выдаем награду
-        let rewardText = '';
-        
-        if (reward.type === 'bananas') {
-            gameState.bananas += reward.amount;
-            gameState.totalBananas += reward.amount;
-            rewardText = `Задание выполнено! +${reward.amount} бананов`;
-        } else if (reward.type === 'stars') {
-            gameState.stars += reward.amount;
-            gameState.totalStars += reward.amount;
-            rewardText = `Задание выполнено! +${reward.amount} звезд`;
-        } else if (reward.type === 'both') {
-            gameState.bananas += reward.bananas;
-            gameState.totalBananas += reward.bananas;
-            gameState.stars += reward.stars;
-            gameState.totalStars += reward.stars;
-            rewardText = `Задание выполнено! +${reward.bananas} бананов, +${reward.stars} звезд`;
-        }
-        
-        // Обновляем статистику
-        updateStats();
-        updateTaskProgress();
-        saveGameState();
-        
-        // Показываем уведомление
-        showPopup(rewardText);
-        
-        // Звук и вибрация
-        playSound('task');
-        vibrate([100, 30, 100, 30, 100]);
-        
-        // Создаем эффект конфетти
-        createConfetti();
-    } catch (e) {
-        console.error('Ошибка при выполнении задания:', e);
-    }
-}
-
-// Открытие бокса
-function openBox(type) {
-    console.log("Открытие бокса:", type);
-    
-    try {
-        let canOpen = false;
-        let rewardText = '';
-        
-        switch(type) {
-            case 'simple':
-                if (gameState.bananas >= 10) {
-                    gameState.bananas -= 10;
-                    canOpen = true;
-                    
-                    // Случайная награда
-                    let reward = Math.floor(Math.random() * 3) + 1;
-                    if (reward === 1) {
-                        // Банан
-                        gameState.bananas += 5;
-                        gameState.totalBananas += 5;
-                        rewardText = '+5 бананов';
-                    } else if (reward === 2) {
-                        // Звезда
-                        gameState.stars += 1;
-                        gameState.totalStars += 1;
-                        rewardText = '+1 звезда';
-                    } else {
-                        // Уровень
-                        addExperience(5);
-                        rewardText = '+5 опыта';
-                    }
-                }
-                break;
-                
-            case 'standard':
-                if (gameState.bananas >= 25) {
-                    gameState.bananas -= 25;
-                    canOpen = true;
-                    
-                    // Случайная награда
-                    reward = Math.floor(Math.random() * 3) + 1;
-                    if (reward === 1) {
-                        gameState.bananas += 15;
-                        gameState.totalBananas += 15;
-                        rewardText = '+15 бананов';
-                    } else if (reward === 2) {
-                        gameState.stars += 3;
-                        gameState.totalStars += 3;
-                        rewardText = '+3 звезды';
-                    } else {
-                        addExperience(10);
-                        rewardText = '+10 опыта';
-                    }
-                }
-                break;
-                
-            case 'premium':
-                if (gameState.stars >= 5) {
-                    gameState.stars -= 5;
-                    canOpen = true;
-                    
-                    // Случайная награда
-                    reward = Math.floor(Math.random() * 3) + 1;
-                    if (reward === 1) {
-                        gameState.bananas += 50;
-                        gameState.totalBananas += 50;
-                        rewardText = '+50 бананов';
-                    } else if (reward === 2) {
-                        gameState.stars += 10;
-                        gameState.totalStars += 10;
-                        rewardText = '+10 звезд';
-                    } else {
-                        addExperience(25);
-                        rewardText = '+25 опыта';
-                    }
-                    
-                    // Отмечаем задание на открытие премиум-кейса
-                    if (gameState.taskProgress.task2 < 1) {
-                        gameState.taskProgress.task2 = 1;
-                        completeTask(2);
-                    }
-                }
-                break;
-                
-            case 'mega':
-                if (gameState.stars >= 15) {
-                    gameState.stars -= 15;
-                    canOpen = true;
-                    
-                    // Случайная награда
-                    reward = Math.floor(Math.random() * 3) + 1;
-                    if (reward === 1) {
-                        gameState.bananas += 100;
-                        gameState.totalBananas += 100;
-                        rewardText = '+100 бананов';
-                    } else if (reward === 2) {
-                        gameState.stars += 20;
-                        gameState.totalStars += 20;
-                        rewardText = '+20 звезд';
-                    } else {
-                        addExperience(50);
-                        rewardText = '+50 опыта';
-                    }
-                }
-                break;
-        }
-        
-        if (canOpen) {
-            // Увеличиваем счетчик открытых боксов
-            gameState.openedBoxes++;
-            
-            // Проверяем задание на открытие боксов
-            if (gameState.openedBoxes >= 5 && gameState.taskProgress.task5 < 1) {
-                gameState.taskProgress.task5 = 1;
-                completeTask(5);
-            }
-            
-            // Обновляем статистику и сохраняем игру
-            updateStats();
-            saveGameState();
-            
-            // Показываем анимацию и оповещение
-            showBoxAnimation(type, rewardText);
-            
-            // Звуковой эффект и вибрация
-            playSound('box');
-            vibrate([100, 50, 200]);
-            
-            return true;
-        } else {
-            // Показываем сообщение о недостатке ресурсов
-            showPopup('Недостаточно ресурсов!');
-            playSound('minionShocked');
-            return false;
-        }
-    } catch (e) {
-        console.error('Ошибка при открытии бокса:', e);
-        return false;
-    }
-}
-
-// Анимация открытия бокса
-function showBoxAnimation(type, rewardText) {
-    try {
-        const boxContainer = document.getElementById('box-animation-container');
-        if (!boxContainer) {
-            console.warn('Контейнер анимации бокса не найден');
-            showPopup(rewardText); // Показываем хотя бы сообщение
-            return;
-        }
-        
-        boxContainer.style.display = 'flex';
-        
-        // Устанавливаем картинку бокса
-        const boxImage = document.getElementById('box-image');
-        if (boxImage) {
-            boxImage.src = getImage(`box_${type}`);
-            
-            // Анимация открытия
-            setTimeout(() => {
-                boxImage.classList.add('shake');
-                
-                setTimeout(() => {
-                    boxImage.classList.remove('shake');
-                    boxImage.classList.add('open');
-                    
-                    // Показываем награду
-                    const boxReward = document.getElementById('box-reward');
-                    if (boxReward) {
-                        boxReward.textContent = rewardText;
-                        boxReward.style.opacity = 1;
-                    }
-                    
-                    // Создаем эффект конфетти
-                    createConfetti();
-                    
-                    // Закрываем анимацию через 3 секунды
-                    setTimeout(() => {
-                        boxImage.classList.remove('open');
-                        if (boxReward) {
-                            boxReward.style.opacity = 0;
-                        }
-                        boxContainer.style.display = 'none';
-                    }, 3000);
-                }, 1000);
-            }, 500);
-        } else {
-            console.warn('Элемент изображения бокса не найден');
-            showPopup(rewardText);
-            boxContainer.style.display = 'none';
-        }
-    } catch (e) {
-        console.error('Ошибка при анимации открытия бокса:', e);
-        showPopup(rewardText); // Показываем хотя бы сообщение
-    }
-}
-
-// Добавление опыта и проверка повышения уровня
-function addExperience(amount) {
-    try {
-        // Формула для расчета опыта, необходимого для следующего уровня
-        const expNeeded = Math.floor(100 * Math.pow(1.5, gameState.level - 1));
-        
-        // Текущий опыт для данного уровня
-        let currentExp = gameState.exp || 0;
-        currentExp += amount;
-        
-        // Проверяем, достаточно ли опыта для повышения уровня
-        if (currentExp >= expNeeded) {
-            // Повышаем уровень
-            gameState.level++;
-            
-            // Остаток опыта переносим на следующий уровень
-            gameState.exp = currentExp - expNeeded;
-            
-            // Награда за новый уровень
-            gameState.bananas += 10 * gameState.level;
-            gameState.totalBananas += 10 * gameState.level;
-            gameState.stars += Math.floor(gameState.level / 2) + 1;
-            gameState.totalStars += Math.floor(gameState.level / 2) + 1;
-            
-            // Показываем анимацию и уведомление
-            showLevelUpAnimation();
-            
-            // Проверяем задание "Достигни 3 уровня"
-            if (gameState.level >= 3 && gameState.taskProgress.task6 < 1) {
-                gameState.taskProgress.task6 = 1;
-                completeTask(6);
-            }
-        } else {
-            // Сохраняем текущий опыт
-            gameState.exp = currentExp;
-        }
-        
-        // Обновляем UI прогресса уровня
-        updateLevelProgress();
-    } catch (e) {
-        console.error('Ошибка при добавлении опыта:', e);
-    }
-}
-
-// Обновление прогресса уровня
-function updateLevelProgress() {
-    try {
-        const expNeeded = Math.floor(100 * Math.pow(1.5, gameState.level - 1));
-        const currentExp = gameState.exp || 0;
-        const percentage = (currentExp / expNeeded) * 100;
-        
-        const levelProgress = document.getElementById('level-progress');
-        if (levelProgress) {
-            levelProgress.style.width = `${percentage}%`;
-        }
-        
-        const levelCounter = document.getElementById('level-counter');
-        if (levelCounter) {
-            levelCounter.textContent = `${currentExp}/${expNeeded}`;
-        }
-    } catch (e) {
-        console.error('Ошибка при обновлении прогресса уровня:', e);
-    }
-}
-
-// Анимация повышения уровня
-function showLevelUpAnimation() {
-    try {
-        const container = document.getElementById('level-up-container');
-        if (!container) {
-            console.warn('Контейнер анимации уровня не найден');
-            showPopup(`Уровень повышен! Вы достигли ${gameState.level} уровня!`);
-            return;
-        }
-        
-        container.style.display = 'flex';
-        
-        // Показываем новый уровень
-        const newLevel = document.getElementById('new-level');
-        if (newLevel) {
-            newLevel.textContent = gameState.level;
-        }
-        
-        // Звуковой эффект и вибрация
-        playSound('levelUp');
-        vibrate([100, 50, 100, 50, 200]);
-        
-        // Создаем эффект конфетти
-        createConfetti();
-        
-        // Закрываем анимацию через 3 секунды
-        setTimeout(() => {
-            container.style.display = 'none';
-        }, 3000);
-    } catch (e) {
-        console.error('Ошибка при анимации повышения уровня:', e);
-        showPopup(`Уровень повышен! Вы достигли ${gameState.level} уровня!`);
-    }
-}
-
-// Создание эффекта конфетти
-function createConfetti() {
-    try {
-        const container = document.getElementById('confetti-container');
-        if (!container) {
-            console.warn('Контейнер конфетти не найден');
-            return;
-        }
-        
-        container.innerHTML = '';
-        
-        // Создаем элементы конфетти
-        for (let i = 0; i < 30; i++) {
-            const confetti = document.createElement('div');
-            confetti.className = 'confetti';
-            
-            // Случайные свойства для разнообразия
-            const size = Math.floor(Math.random() * 10) + 5; // от 5 до 15px
-            const color = `hsl(${Math.floor(Math.random() * 360)}, 80%, 60%)`;
-            const left = Math.floor(Math.random() * 100); // от 0 до 100%
-            const delay = Math.random() * 3; // от 0 до 3 секунд
-            
-            // Применяем стили
-            confetti.style.width = `${size}px`;
-            confetti.style.height = `${size}px`;
-            confetti.style.backgroundColor = color;
-            confetti.style.left = `${left}%`;
-            confetti.style.animationDelay = `${delay}s`;
-            
-            // Добавляем в контейнер
-            container.appendChild(confetti);
-        }
-        
-        // Удаляем конфетти через 6 секунд (анимация длится 4-5 секунд)
-        setTimeout(() => {
-            container.innerHTML = '';
-        }, 6000);
-    } catch (e) {
-        console.error('Ошибка при создании конфетти:', e);
-    }
-}
