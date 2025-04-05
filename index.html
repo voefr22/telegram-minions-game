@@ -18,13 +18,58 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Экран загрузки -->
-    <div id="splash-screen" class="splash">
-        <div class="splash-minion"></div>
-        <h1>Minions</h1>
-        <div class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <p>Загрузка игры... <span id="loading-progress">0%</span></p>
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="section">
+        <div class="splash-content">
+            <div class="splash-logo">
+                <img src="images/logo.png" alt="Minions Game Logo" />
+            </div>
+            <div class="splash-loading">
+                <div class="loading-bar">
+                    <div class="loading-progress"></div>
+                </div>
+                <div class="loading-text">Загрузка... <span id="loading-progress">0%</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Screen -->
+    <div id="main-screen" class="section">
+        <!-- Top bar with profile and stats -->
+        <div class="top-stats">
+            <div class="profile-link">
+                <div class="profile-avatar-small"></div>
+                <span>Профиль »</span>
+            </div>
+            <div class="currency-badge">
+                <span id="main-bananas-count"></span> 🍌
+            </div>
+        </div>
+        
+        <!-- Main content -->
+        <div class="main-content-center">
+            <!-- Currency display -->
+            <div class="main-currency-display">
+                <span>🍌</span>
+                <span id="main-bananas-large"></span>
+            </div>
+            
+            <!-- Minion character -->
+            <div id="main-minion-container">
+                <div id="main-interactive-minion"></div>
+            </div>
+            
+            <!-- Status message -->
+            <div class="main-status-message">
+                <h2>MINIONS GAME</h2>
+                <p>Выполняйте задания и собирайте бананы</p>
+            </div>
+            
+            <!-- Action buttons -->
+            <div class="main-action-buttons">
+                <button class="action-button" data-section="tasks-section">ЗАДАНИЯ »</button>
+                <button class="action-button" data-section="boxes-section">БОКСЫ »</button>
+            </div>
         </div>
     </div>
 
