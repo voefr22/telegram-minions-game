@@ -514,18 +514,46 @@ const IMAGES = {
 // Предзагрузка изображений
 const preloadedImages = {};
 
+// Функция для предзагрузки ресурсов с отслеживанием прогресса
 function preloadResources(callback) {
-    const images = Object.entries(IMAGES);
-    const totalResources = images.length;
-    let loadedResources = 0;
+    console.log("Начинаем предзагрузку ресурсов");
     
-    // Update loading progress
+    // Список всех изображений, которые нужно предзагрузить
+    const imagesToPreload = [
+        'logo.png',
+        'avatar.png',
+        'box_simple.png',
+        'box_standard.png',
+        'box_premium.png',
+        'box_mega.png',
+        'wheel.png',
+        'farm.png'
+    ];
+    
+    // Добавляем все изображения миньонов
+    for (let i = 1; i <= 10; i++) {
+        imagesToPreload.push(`minion_${i}.png`);
+    }
+    
+    let loadedResources = 0;
+    const totalResources = imagesToPreload.length;
+    
+    // Исправление функции обновления прогресса загрузки
     function updateProgress() {
         loadedResources++;
         const progress = Math.floor((loadedResources / totalResources) * 100);
+        // Ограничиваем максимальное значение до 100%
+        const cappedProgress = Math.min(progress, 100);
+        
         const progressElement = document.getElementById('loading-progress');
         if (progressElement) {
-            progressElement.textContent = `${progress}%`;
+            progressElement.textContent = `${cappedProgress}%`;
+        }
+        
+        // Обновить также визуальный индикатор загрузки, если он есть
+        const progressBar = document.querySelector('.loading-progress');
+        if (progressBar) {
+            progressBar.style.width = `${cappedProgress}%`;
         }
         
         if (loadedResources >= totalResources && callback) {
@@ -533,16 +561,16 @@ function preloadResources(callback) {
         }
     }
     
-    // Load each image
-    images.forEach(([key, src]) => {
-        preloadedImages[key] = new Image();
-        preloadedImages[key].onload = updateProgress;
-        preloadedImages[key].onerror = () => {
-            console.warn(`Failed to load image: ${key}, using fallback`);
-            preloadedImages[key].src = 'https://i.imgur.com/ZcukEsb.png';
+    // Предзагрузка каждого изображения
+    imagesToPreload.forEach(imageName => {
+        const img = new Image();
+        img.onload = updateProgress;
+        img.onerror = () => {
+            console.warn(`Не удалось загрузить изображение: ${imageName}`);
+            // Используем запасное изображение в случае ошибки
             updateProgress();
         };
-        preloadedImages[key].src = src;
+        img.src = `images/${imageName}`;
     });
 }
 
@@ -1039,6 +1067,9 @@ function initializeUI() {
         
         // Инициализация интерактивного миньона
         initInteractiveMinion();
+        
+        // Инициализация фермы
+        initFarmState();
     } catch (e) {
         console.error('Ошибка при инициализации UI:', e);
     }
@@ -1161,24 +1192,24 @@ function updateTaskProgressUI(taskId, current, total) {
 function domElementExists(id) {
     return document.getElementById(id) !== null;
 }
-// Показать секцию
+// Исправленная функция для показа секций
 function showSection(sectionId) {
-    console.log(`Переключение на секцию: ${sectionId}`);
+    console.log("Показываем секцию:", sectionId);
     
-    // Нормализуем ID секции
-    if (!sectionId.endsWith('-section') && sectionId !== 'main-screen') {
+    // Нормализуем ID секции (добавляем "-section", если его нет)
+    if (!sectionId.endsWith('-section')) {
         sectionId = sectionId + '-section';
     }
     
-    // Получаем целевую секцию
+    // Получаем элемент секции
     const targetSection = document.getElementById(sectionId);
     if (!targetSection) {
         console.warn(`Секция не найдена: ${sectionId}`);
         return;
     }
     
-    // Сначала скрываем все секции
-    const sections = document.querySelectorAll('[id$="-section"], #main-screen');
+    // Скрываем все секции
+    const sections = document.querySelectorAll('.section, [id$="-section"]');
     sections.forEach(section => {
         section.style.display = 'none';
         section.classList.remove('active-section');
@@ -1192,16 +1223,13 @@ function showSection(sectionId) {
     const menuItems = document.querySelectorAll('.menu-item');
     menuItems.forEach(item => {
         item.classList.remove('active');
-        const itemSectionId = item.getAttribute('data-section');
-        if (itemSectionId === sectionId || 
-            itemSectionId + '-section' === sectionId || 
-            (itemSectionId === 'main-screen' && sectionId === 'main-screen')) {
+        const itemSection = item.getAttribute('data-section');
+        if (itemSection === sectionId || itemSection + '-section' === sectionId) {
             item.classList.add('active');
         }
     });
     
-    // Сохраняем последнюю активную секцию
-    localStorage.setItem('lastActiveSection', sectionId);
+    console.log(`Секция ${sectionId} отображена`);
 }
 // Выполнение задания
 function completeTask(taskId) {
@@ -1461,16 +1489,37 @@ function showBoxAnimation(type, rewardText) {
         // Устанавливаем изображение бокса
         boxImage.src = `images/box_${type}.png`;
         
+        // Добавляем класс для VIP-боксов
+        if (type === 'premium' || type === 'mega') {
+            boxImage.classList.add('vip-box');
+        } else {
+            boxImage.classList.remove('vip-box');
+        }
+        
         // Показываем контейнер
         container.style.display = 'flex';
         
         // Анимация открытия бокса
         setTimeout(() => {
-            boxImage.style.transform = 'scale(1.2)';
+            // Добавляем класс для анимации тряски
+            boxImage.classList.add('shake');
             
             // Показываем награду
             setTimeout(() => {
+                // Удаляем класс тряски и добавляем класс открытия
+                boxImage.classList.remove('shake');
+                boxImage.classList.add('open');
+                
+                // Показываем награду
                 boxReward.textContent = rewardText;
+                
+                // Добавляем класс для VIP-наград
+                if (type === 'premium' || type === 'mega') {
+                    boxReward.classList.add('vip-reward');
+                } else {
+                    boxReward.classList.remove('vip-reward');
+                }
+                
                 boxReward.style.opacity = '1';
                 
                 // Звуковой эффект и вибрация
@@ -1479,7 +1528,7 @@ function showBoxAnimation(type, rewardText) {
                 
                 // Создаем эффект конфетти
                 createConfetti();
-            }, 500);
+            }, 1200); // После анимации тряски
         }, 300);
     } catch (e) {
         console.error('Ошибка при анимации открытия бокса:', e);
@@ -1769,3 +1818,269 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+// Добавляем состояние фермы в gameState
+function initFarmState() {
+    // Устанавливаем начальные значения фермы, если их нет
+    if (!gameState.farm) {
+        gameState.farm = {
+            minions: 0,
+            efficiency: 1, // множитель эффективности (1 = 100%)
+            lastCollect: Date.now(),
+            bananasPending: 0,
+            boostUntil: 0, // время окончания буста (timestamp)
+            autoCollectUntil: 0, // время окончания автосбора (timestamp)
+            upgrades: {
+                efficiency: 0,
+                automation: 0,
+                boost: 0
+            }
+        };
+    }
+    
+    // Добавляем пункт фермы в меню, если его нет
+    const menuItem = document.createElement('div');
+    menuItem.className = 'menu-item';
+    menuItem.setAttribute('data-section', 'farm-section');
+    menuItem.textContent = 'Ферма';
+    
+    const bottomMenu = document.querySelector('.bottom-menu');
+    if (bottomMenu && !document.querySelector('.menu-item[data-section="farm-section"]')) {
+        // Вставляем перед профилем и настройками
+        const profileItem = document.querySelector('.menu-item[data-section="profile-section"]');
+        if (profileItem) {
+            bottomMenu.insertBefore(menuItem, profileItem);
+        } else {
+            bottomMenu.appendChild(menuItem);
+        }
+    }
+    
+    // Инициализируем обработчики для фермы
+    initFarmHandlers();
+    
+    // Запускаем таймер обновления фермы
+    setInterval(updateFarm, 60000); // обновляем каждую минуту
+}
+
+// Обработчики событий для фермы
+function initFarmHandlers() {
+    // Кнопка сбора урожая
+    const collectBtn = document.getElementById('farm-collect-btn');
+    if (collectBtn) {
+        collectBtn.addEventListener('click', collectFarmBananas);
+    }
+    
+    // Кнопки покупки улучшений
+    document.querySelectorAll('.upgrade-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const upgradeType = this.getAttribute('data-type');
+            buyFarmUpgrade(upgradeType);
+        });
+    });
+    
+    // Обновляем отображение фермы
+    updateFarmUI();
+}
+
+// Обновление фермы (вызывается по таймеру)
+function updateFarm() {
+    // Если нет миньонов, ничего не делаем
+    if (!gameState.farm || gameState.farm.minions <= 0) return;
+    
+    const now = Date.now();
+    const elapsedHours = (now - gameState.farm.lastCollect) / (1000 * 60 * 60);
+    
+    // Считаем производство бананов
+    let production = gameState.farm.minions; // базовое производство: 1 банан в час на миньона
+    
+    // Применяем множитель эффективности
+    production *= gameState.farm.efficiency;
+    
+    // Применяем буст, если активен
+    if (now < gameState.farm.boostUntil) {
+        production *= 2;
+    }
+    
+    // Добавляем накопленные бананы
+    gameState.farm.bananasPending += production * elapsedHours;
+    
+    // Обновляем время последнего подсчета
+    gameState.farm.lastCollect = now;
+    
+    // Если включен автосбор и он активен
+    if (now < gameState.farm.autoCollectUntil) {
+        collectFarmBananas();
+    }
+    
+    // Обновляем UI фермы
+    updateFarmUI();
+    
+    // Сохраняем состояние
+    saveGameState();
+}
+
+// Сбор бананов с фермы
+function collectFarmBananas() {
+    if (!gameState.farm || gameState.farm.bananasPending <= 0) {
+        showPopup('Нет бананов для сбора!');
+        return;
+    }
+    
+    // Округляем количество бананов до целого числа
+    const bananasToCollect = Math.floor(gameState.farm.bananasPending);
+    
+    // Добавляем бананы игроку
+    gameState.bananas += bananasToCollect;
+    gameState.totalBananas += bananasToCollect;
+    
+    // Сбрасываем счетчик накопленных бананов
+    gameState.farm.bananasPending = 0;
+    
+    // Обновляем время последнего сбора
+    gameState.farm.lastCollect = Date.now();
+    
+    // Обновляем UI и сохраняем состояние
+    updateFarmUI();
+    updateStats();
+    saveGameState();
+    
+    // Показываем уведомление
+    showPopup(`Собрано ${bananasToCollect} бананов!`);
+    
+    // Звуковой эффект и вибрация
+    playSound('reward');
+    vibrate([100, 50, 100]);
+}
+
+// Покупка улучшений для фермы
+function buyFarmUpgrade(type) {
+    if (!gameState.farm) return;
+    
+    const upgradeCosts = {
+        efficiency: [10, 25, 50, 100, 200],
+        automation: [15, 35, 70, 150, 300],
+        boost: [20, 40, 80, 160, 320]
+    };
+    
+    const upgradeLevel = gameState.farm.upgrades[type];
+    
+    // Проверяем, не достигнут ли максимальный уровень
+    if (upgradeLevel >= 5) {
+        showPopup('Достигнут максимальный уровень улучшения!');
+        return;
+    }
+    
+    // Проверяем стоимость улучшения
+    const cost = upgradeCosts[type][upgradeLevel];
+    
+    if (gameState.bananas < cost) {
+        showPopup(`Недостаточно бананов! Нужно: ${cost}`);
+        return;
+    }
+    
+    // Списываем бананы
+    gameState.bananas -= cost;
+    
+    // Применяем улучшение
+    gameState.farm.upgrades[type]++;
+    
+    // Обновляем эффекты улучшений
+    switch(type) {
+        case 'efficiency':
+            gameState.farm.efficiency = 1 + (gameState.farm.upgrades.efficiency * 0.2);
+            break;
+        case 'automation':
+            // Автоматический сбор на 1 час за каждый уровень
+            gameState.farm.autoCollectUntil = Date.now() + (3600000 * gameState.farm.upgrades.automation);
+            break;
+        case 'boost':
+            // Буст на 30 минут за каждый уровень
+            gameState.farm.boostUntil = Date.now() + (1800000 * gameState.farm.upgrades.boost);
+            break;
+    }
+    
+    // Обновляем UI и сохраняем состояние
+    updateFarmUI();
+    updateStats();
+    saveGameState();
+    
+    // Показываем уведомление
+    showPopup(`Улучшение "${type}" повышено до уровня ${gameState.farm.upgrades[type]}!`);
+    
+    // Звуковой эффект и вибрация
+    playSound('reward');
+    vibrate([100, 50, 100]);
+}
+
+// Обновление UI фермы
+function updateFarmUI() {
+    if (!gameState.farm) return;
+    
+    // Обновляем статистику фермы
+    const minionsCount = document.getElementById('farm-minions-count');
+    if (minionsCount) {
+        minionsCount.textContent = gameState.farm.minions;
+    }
+    
+    const efficiencyValue = document.getElementById('farm-efficiency-value');
+    if (efficiencyValue) {
+        efficiencyValue.textContent = `${Math.round(gameState.farm.efficiency * 100)}%`;
+    }
+    
+    const pendingBananas = document.getElementById('farm-pending-bananas');
+    if (pendingBananas) {
+        pendingBananas.textContent = Math.floor(gameState.farm.bananasPending);
+    }
+    
+    // Обновляем кнопку сбора
+    const collectBtn = document.getElementById('farm-collect-btn');
+    if (collectBtn) {
+        collectBtn.disabled = gameState.farm.bananasPending <= 0;
+    }
+    
+    // Обновляем статус буста и автосбора
+    const boostStatus = document.getElementById('farm-boost-status');
+    if (boostStatus) {
+        const now = Date.now();
+        if (now < gameState.farm.boostUntil) {
+            const remainingTime = Math.ceil((gameState.farm.boostUntil - now) / 60000);
+            boostStatus.textContent = `Буст активен: ${remainingTime} мин.`;
+            boostStatus.classList.add('active');
+        } else {
+            boostStatus.textContent = 'Буст неактивен';
+            boostStatus.classList.remove('active');
+        }
+    }
+    
+    const autoCollectStatus = document.getElementById('farm-autocollect-status');
+    if (autoCollectStatus) {
+        const now = Date.now();
+        if (now < gameState.farm.autoCollectUntil) {
+            const remainingTime = Math.ceil((gameState.farm.autoCollectUntil - now) / 60000);
+            autoCollectStatus.textContent = `Автосбор: ${remainingTime} мин.`;
+            autoCollectStatus.classList.add('active');
+        } else {
+            autoCollectStatus.textContent = 'Автосбор неактивен';
+            autoCollectStatus.classList.remove('active');
+        }
+    }
+    
+    // Обновляем кнопки улучшений
+    document.querySelectorAll('.upgrade-btn').forEach(btn => {
+        const type = btn.getAttribute('data-type');
+        const level = gameState.farm.upgrades[type];
+        const cost = [10, 25, 50, 100, 200][level] || 0;
+        
+        const costElement = btn.querySelector('.upgrade-cost');
+        if (costElement) {
+            costElement.textContent = cost;
+        }
+        
+        const levelElement = btn.querySelector('.upgrade-level');
+        if (levelElement) {
+            levelElement.textContent = `Уровень ${level}/5`;
+        }
+        
+        btn.disabled = gameState.bananas < cost || level >= 5;
+    });
+}
