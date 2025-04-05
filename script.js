@@ -212,6 +212,7 @@ class ResourceManager {
         this.totalResources = 0;
         this.onProgress = null;
         this.onComplete = null;
+        this.fallbackImage = CONFIG.FALLBACK_IMAGE;
     }
 
     async preloadResources(onProgress, onComplete) {
@@ -220,36 +221,35 @@ class ResourceManager {
 
         const resources = [
             // Images
-            { type: 'image', id: 'minion', path: 'images/minion.png' },
-            { type: 'image', id: 'minion-happy', path: 'images/minion-happy.png' },
-            { type: 'image', id: 'minion-shocked', path: 'images/minion-shocked.png' },
-            { type: 'image', id: 'simple-box', path: 'images/simple-box.png' },
-            { type: 'image', id: 'standard-box', path: 'images/standard-box.png' },
-            { type: 'image', id: 'premium-box', path: 'images/premium-box.png' },
-            { type: 'image', id: 'mega-box', path: 'images/mega-box.png' },
-            { type: 'image', id: 'banana', path: 'images/banana.png' },
-            { type: 'image', id: 'star', path: 'images/star.png' },
-            { type: 'image', id: 'wheel', path: 'images/wheel.png' },
-            { type: 'image', id: 'pointer', path: 'images/pointer.png' },
-            
+            ...Object.entries(CONFIG.IMAGES).map(([id, path]) => ({
+                type: 'image',
+                id,
+                path
+            })),
             // Sounds
-            { type: 'sound', id: 'click', path: 'sounds/click.mp3' },
-            { type: 'sound', id: 'minionHappy', path: 'sounds/minion-happy.mp3' },
-            { type: 'sound', id: 'minionShocked', path: 'sounds/minion-shocked.mp3' },
-            { type: 'sound', id: 'box', path: 'sounds/box.mp3' },
-            { type: 'sound', id: 'task', path: 'sounds/task.mp3' },
-            { type: 'sound', id: 'levelUp', path: 'sounds/level-up.mp3' },
-            { type: 'sound', id: 'wheel', path: 'sounds/wheel.mp3' }
+            ...Object.entries(CONFIG.SOUNDS).map(([id, path]) => ({
+                type: 'sound',
+                id,
+                path
+            }))
         ];
 
         this.totalResources = resources.length;
         this.loadedResources = 0;
 
-        const loadPromises = resources.map(resource => this.loadResource(resource));
-        await Promise.all(loadPromises);
-
-        if (this.onComplete) {
-            this.onComplete();
+        try {
+            const loadPromises = resources.map(resource => this.loadResource(resource));
+            await Promise.allSettled(loadPromises);
+            
+            if (this.onComplete) {
+                this.onComplete();
+            }
+        } catch (error) {
+            console.error('Error during resource preloading:', error);
+            // Still call onComplete to not block the game
+            if (this.onComplete) {
+                this.onComplete();
+            }
         }
     }
 
@@ -264,20 +264,30 @@ class ResourceManager {
             console.error(`Error loading ${resource.type} ${resource.id}:`, error);
             // Use fallback resources if available
             if (resource.type === 'image') {
-                this.images.set(resource.id, CONFIG.FALLBACK_IMAGE);
+                this.images.set(resource.id, this.fallbackImage);
             }
+            // Still update progress even if loading failed
+            this.updateProgress();
         }
     }
 
     async loadImage(id, path) {
         return new Promise((resolve, reject) => {
             const img = new Image();
+            
             img.onload = () => {
                 this.images.set(id, img);
                 this.updateProgress();
                 resolve();
             };
-            img.onerror = () => reject(new Error(`Failed to load image: ${path}`));
+            
+            img.onerror = () => {
+                console.warn(`Failed to load image: ${path}, using fallback`);
+                this.images.set(id, this.fallbackImage);
+                this.updateProgress();
+                resolve(); // Resolve instead of reject to not block other resources
+            };
+            
             img.src = path;
         });
     }
@@ -285,12 +295,19 @@ class ResourceManager {
     async loadSound(id, path) {
         return new Promise((resolve, reject) => {
             const audio = new Audio();
+            
             audio.oncanplaythrough = () => {
                 this.sounds.set(id, audio);
                 this.updateProgress();
                 resolve();
             };
-            audio.onerror = () => reject(new Error(`Failed to load sound: ${path}`));
+            
+            audio.onerror = () => {
+                console.warn(`Failed to load sound: ${path}`);
+                this.updateProgress();
+                resolve(); // Resolve instead of reject to not block other resources
+            };
+            
             audio.src = path;
         });
     }
@@ -304,7 +321,12 @@ class ResourceManager {
     }
 
     getImage(id) {
-        return this.images.get(id) || CONFIG.FALLBACK_IMAGE;
+        const image = this.images.get(id);
+        if (!image) {
+            console.warn(`Image not found: ${id}, using fallback`);
+            return this.fallbackImage;
+        }
+        return image;
     }
 
     playSound(id) {
@@ -314,7 +336,7 @@ class ResourceManager {
         if (sound) {
             sound.currentTime = 0;
             sound.play().catch(error => {
-                console.error(`Error playing sound ${id}:`, error);
+                console.warn(`Error playing sound ${id}:`, error);
             });
         }
     }
@@ -354,7 +376,8 @@ class UIManager {
             levelProgress: document.querySelector('.level-progress'),
             popupMessage: document.querySelector('.popup-message'),
             boxAnimation: document.querySelector('.box-animation'),
-            confettiContainer: document.querySelector('.confetti-container')
+            confettiContainer: document.querySelector('.confetti-container'),
+            taskList: document.querySelector('.task-list')
         };
     }
 
@@ -411,20 +434,7 @@ class UIManager {
     }
 
     handleMinionClick() {
-        const state = this.gameState.state;
-        this.gameState.update({
-            petCount: state.petCount + 1,
-            bananas: state.bananas + 1,
-            totalBananas: state.totalBananas + 1
-        });
-        
-        this.resourceManager.playSound('minionHappy');
-        if (window.gameSettings.vibrationEnabled) {
-            navigator.vibrate(50);
-        }
-        
-        this.showMinionAnimation();
-        this.checkPetAchievements();
+        gameLogic.handleMinionClick();
     }
 
     showMinionAnimation() {
@@ -433,17 +443,23 @@ class UIManager {
         setTimeout(() => minion.classList.remove('happy'), 1000);
     }
 
-    checkPetAchievements() {
-        const state = this.gameState.state;
-        if (state.petCount >= 10 && state.taskProgress.task1 < 1) {
-            this.gameState.update({
-                taskProgress: {
-                    ...state.taskProgress,
-                    task1: 1
-                }
-            });
-            gameLogic.completeTask(1);
-        }
+    updateTaskProgress() {
+        if (!this.elements.taskList) return;
+
+        const taskStatuses = gameLogic.taskManager.getAllTaskStatuses();
+        
+        this.elements.taskList.innerHTML = taskStatuses.map(task => `
+            <div class="task ${task.isCompleted ? 'completed' : ''}">
+                <div class="task-header">
+                    <span class="task-title">${task.text}</span>
+                    <span class="task-reward">${this.getRewardText(task.reward)}</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress" style="width: ${(task.progress / task.target) * 100}%"></div>
+                </div>
+                <div class="task-counter">${task.progress}/${task.target}</div>
+            </div>
+        `).join('');
     }
 
     updateAchievements() {
@@ -555,15 +571,7 @@ class UIManager {
                 invitedFriends: state.invitedFriends + 1
             });
             
-            if (state.invitedFriends >= 3 && state.taskProgress.task7 < 1) {
-                this.gameState.update({
-                    taskProgress: {
-                        ...state.taskProgress,
-                        task7: 1
-                    }
-                });
-                gameLogic.completeTask(7);
-            }
+            gameLogic.taskManager.updateTaskProgress(7, state.invitedFriends + 1);
         }
     }
 
@@ -577,12 +585,148 @@ class UIManager {
     }
 }
 
+// Task Manager
+class TaskManager {
+    constructor(gameState, uiManager) {
+        this.gameState = gameState;
+        this.uiManager = uiManager;
+        this.tasks = CONFIG.TASKS;
+    }
+
+    checkTaskCompletion(taskId) {
+        const state = this.gameState.state;
+        const task = this.tasks[taskId];
+        if (!task) return false;
+
+        const progress = this.getTaskProgress(taskId, state);
+        return progress >= task.target;
+    }
+
+    getTaskProgress(taskId, state) {
+        switch (taskId) {
+            case 1: return state.petCount;
+            case 2: return state.totalBananas;
+            case 3: return state.bananas;
+            case 4: return state.totalStars;
+            case 5: return state.openedBoxes;
+            case 6: return state.level;
+            case 7: return state.invitedFriends;
+            case 8: return state.totalStars;
+            case 9: return state.totalStars;
+            case 10: return state.totalBananas;
+            default: return 0;
+        }
+    }
+
+    updateTaskProgress(taskId, progress) {
+        const state = this.gameState.state;
+        const taskKey = `task${taskId}`;
+        
+        // Update task progress
+        this.gameState.update({
+            taskProgress: {
+                ...state.taskProgress,
+                [taskKey]: Math.min(1, progress / this.tasks[taskId].target)
+            }
+        });
+
+        // Check for completion
+        if (this.checkTaskCompletion(taskId) && state.taskProgress[taskKey] < 1) {
+            this.completeTask(taskId);
+        }
+
+        // Update UI
+        this.uiManager.updateTaskProgress();
+    }
+
+    completeTask(taskId) {
+        const state = this.gameState.state;
+        const task = this.tasks[taskId];
+        if (!task) return;
+
+        // Mark task as completed
+        this.gameState.update({
+            taskProgress: {
+                ...state.taskProgress,
+                [`task${taskId}`]: 1
+            },
+            completedTasks: state.completedTasks + 1
+        });
+
+        // Apply rewards
+        const reward = this.getTaskReward(taskId);
+        if (reward) {
+            this.applyTaskReward(reward);
+        }
+
+        // Show completion notification
+        this.uiManager.showTaskCompletion(taskId, reward);
+        
+        // Play effects
+        this.uiManager.resourceManager.playSound('task');
+        if (window.gameSettings.vibrationEnabled) {
+            navigator.vibrate([100, 30, 100, 30, 100]);
+        }
+        this.uiManager.createConfetti();
+    }
+
+    getTaskReward(taskId) {
+        return this.tasks[taskId]?.reward;
+    }
+
+    applyTaskReward(reward) {
+        const state = this.gameState.state;
+        const updates = {};
+
+        if (reward.type === 'bananas') {
+            updates.bananas = state.bananas + reward.amount;
+            updates.totalBananas = state.totalBananas + reward.amount;
+        } else if (reward.type === 'stars') {
+            updates.stars = state.stars + reward.amount;
+            updates.totalStars = state.totalStars + reward.amount;
+        } else if (reward.type === 'both') {
+            updates.bananas = state.bananas + reward.bananas;
+            updates.totalBananas = state.totalBananas + reward.bananas;
+            updates.stars = state.stars + reward.stars;
+            updates.totalStars = state.totalStars + reward.stars;
+        }
+
+        if (Object.keys(updates).length > 0) {
+            this.gameState.update(updates);
+        }
+    }
+
+    getTaskStatus(taskId) {
+        const state = this.gameState.state;
+        const task = this.tasks[taskId];
+        if (!task) return null;
+
+        const progress = this.getTaskProgress(taskId, state);
+        const isCompleted = state.taskProgress[`task${taskId}`] >= 1;
+
+        return {
+            text: task.text,
+            progress,
+            target: task.target,
+            isCompleted,
+            reward: task.reward
+        };
+    }
+
+    getAllTaskStatuses() {
+        return Object.keys(this.tasks).map(taskId => 
+            this.getTaskStatus(parseInt(taskId))
+        ).filter(status => status !== null);
+    }
+}
+
 // Game Logic Manager
 class GameLogicManager {
     constructor(gameState, resourceManager, uiManager) {
         this.gameState = gameState;
         this.resourceManager = resourceManager;
         this.uiManager = uiManager;
+        this.taskManager = new TaskManager(gameState, uiManager);
     }
 
     openBox(type) {
@@ -595,7 +739,7 @@ class GameLogicManager {
                 const reward = this.calculateReward(type);
                 this.applyReward(reward);
                 this.incrementBoxCount();
-                this.checkBoxTasks();
+                this.taskManager.updateTaskProgress(5, this.gameState.state.openedBoxes + 1);
                 this.showBoxAnimation(type, reward.text);
                 return true;
             } else {
@@ -603,7 +747,7 @@ class GameLogicManager {
                 return false;
             }
         } catch (error) {
-            console.error('Error opening box:', error);
+            errorHandler.handleError(error, 'Error opening box');
             return false;
         }
     }
@@ -689,19 +833,6 @@ class GameLogicManager {
         });
     }
 
-    checkBoxTasks() {
-        const state = this.gameState.state;
-        if (state.openedBoxes >= 5 && state.taskProgress.task5 < 1) {
-            this.gameState.update({
-                taskProgress: {
-                    ...state.taskProgress,
-                    task5: 1
-                }
-            });
-            this.completeTask(5);
-        }
-    }
-
     showBoxAnimation(type, rewardText) {
         this.resourceManager.playSound('box');
         if (window.gameSettings.vibrationEnabled) {
@@ -753,66 +884,21 @@ class GameLogicManager {
         this.uiManager.updateLevelProgress();
     }
 
-    completeTask(taskId) {
+    handleMinionClick() {
         const state = this.gameState.state;
-        if (state.taskProgress[`task${taskId}`] >= 1) return;
-
-        const reward = this.getTaskReward(taskId);
-        if (!reward) return;
-
         this.gameState.update({
-            taskProgress: {
-                ...state.taskProgress,
-                [`task${taskId}`]: 1
-            },
-            completedTasks: state.completedTasks + 1,
-            ...this.calculateTaskReward(reward)
+            petCount: state.petCount + 1,
+            bananas: state.bananas + 1,
+            totalBananas: state.totalBananas + 1
         });
-
-        this.uiManager.showTaskCompletion(taskId, reward);
-        this.resourceManager.playSound('task');
+        
+        this.resourceManager.playSound('minionHappy');
         if (window.gameSettings.vibrationEnabled) {
-            navigator.vibrate([100, 30, 100, 30, 100]);
+            navigator.vibrate(50);
         }
-        this.uiManager.createConfetti();
-    }
-
-    getTaskReward(taskId) {
-        const rewards = {
-            1: { type: 'bananas', amount: 100 },
-            2: { type: 'bananas', amount: 50 },
-            3: { type: 'bananas', amount: 20 },
-            4: { type: 'stars', amount: 5 },
-            5: { type: 'stars', amount: 10 },
-            6: { type: 'stars', amount: 15 },
-            7: { type: 'both', bananas: 50, stars: 5 },
-            8: { type: 'stars', amount: 8 },
-            9: { type: 'stars', amount: 10 },
-            10: { type: 'bananas', amount: 150 }
-        };
-        return rewards[taskId];
-    }
-
-    calculateTaskReward(reward) {
-        if (reward.type === 'bananas') {
-            return {
-                bananas: this.gameState.state.bananas + reward.amount,
-                totalBananas: this.gameState.state.totalBananas + reward.amount
-            };
-        } else if (reward.type === 'stars') {
-            return {
-                stars: this.gameState.state.stars + reward.amount,
-                totalStars: this.gameState.state.totalStars + reward.amount
-            };
-        } else if (reward.type === 'both') {
-            return {
-                bananas: this.gameState.state.bananas + reward.bananas,
-                totalBananas: this.gameState.state.totalBananas + reward.bananas,
-                stars: this.gameState.state.stars + reward.stars,
-                totalStars: this.gameState.state.totalStars + reward.stars
-            };
-        }
-        return {};
+        
+        this.uiManager.showMinionAnimation();
+        this.taskManager.updateTaskProgress(1, state.petCount + 1);
     }
 }
 
@@ -957,12 +1043,107 @@ function checkDailyReward() {
 // Start the game when the page loads
 document.addEventListener('DOMContentLoaded', initializeGame);
 
-// Handle errors
+// Error Handler
+class ErrorHandler {
+    constructor() {
+        this.errorCount = 0;
+        this.maxErrors = 5;
+        this.errorTimeout = 5000; // 5 seconds
+        this.lastErrorTime = 0;
+    }
+
+    handleError(error, context = '') {
+        const now = Date.now();
+        
+        // Reset error count if enough time has passed
+        if (now - this.lastErrorTime > this.errorTimeout) {
+            this.errorCount = 0;
+        }
+        
+        this.lastErrorTime = now;
+        this.errorCount++;
+
+        // Log error
+        console.error(`[${context}]`, error);
+
+        // Show user-friendly error message if needed
+        if (this.shouldShowError()) {
+            this.showErrorToUser(error, context);
+        }
+
+        // Handle critical errors
+        if (this.isCriticalError(error)) {
+            this.handleCriticalError(error, context);
+        }
+    }
+
+    shouldShowError() {
+        return this.errorCount <= this.maxErrors;
+    }
+
+    isCriticalError(error) {
+        return error instanceof TypeError || 
+               error instanceof ReferenceError ||
+               error.message?.includes('critical') ||
+               error.message?.includes('fatal');
+    }
+
+    showErrorToUser(error, context) {
+        let message = 'Произошла ошибка. ';
+        
+        if (context) {
+            message += `Контекст: ${context}. `;
+        }
+
+        if (error.message) {
+            message += error.message;
+        } else {
+            message += 'Пожалуйста, попробуйте еще раз.';
+        }
+
+        // Use existing popup system
+        showPopup(message);
+    }
+
+    handleCriticalError(error, context) {
+        // Save game state if possible
+        try {
+            if (window.gameStateManager) {
+                window.gameStateManager.save();
+            }
+        } catch (e) {
+            console.error('Failed to save game state during critical error:', e);
+        }
+
+        // Show critical error message
+        const criticalMessage = `Критическая ошибка: ${context}. Игра будет перезагружена.`;
+        showErrorPopup(criticalMessage);
+
+        // Reload game after delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 3000);
+    }
+}
+
+// Initialize error handler
+const errorHandler = new ErrorHandler();
+
+// Update error handling in existing functions
+function handleError(message, error) {
+    errorHandler.handleError(error, message);
+}
+
+// Update window.onerror
 window.onerror = function(message, source, lineno, colno, error) {
-    console.error('Game error:', { message, source, lineno, colno, error });
-    showError('Произошла ошибка. Пожалуйста, попробуйте еще раз.');
+    errorHandler.handleError(error, `Global error at ${source}:${lineno}`);
     return false;
 };
+
+// Update unhandled promise rejection handler
+window.addEventListener('unhandledrejection', function(event) {
+    errorHandler.handleError(event.reason, 'Unhandled Promise Rejection');
+});
 
 // Инициализация интерактивного миньона
 function initInteractiveMinion() {
@@ -1371,28 +1552,7 @@ window.addEventListener('beforeunload', function() {
 
 // Функция для обработки ошибок без блокировки приложения
 function handleError(message, error) {
-    console.error(message, error);
-    
-    // Показываем ошибку пользователю только если это критическая ошибка
-    if (message.includes("инициализации") || message.includes("загрузки")) {
-        showErrorPopup("Произошла ошибка при загрузке игры. Но мы всё равно попробуем запустить её!");
-    }
-    
-    // Убедимся, что экран загрузки не остался видимым
-    const splashScreen = document.getElementById('splash-screen');
-    if (splashScreen) {
-        splashScreen.style.opacity = 0;
-        setTimeout(() => {
-            splashScreen.style.display = 'none';
-        }, 500);
-    }
-    
-    // Показываем какую-нибудь секцию, чтобы не оставлять пустой экран
-    try {
-        showSection('tasks-section');
-    } catch (e) {
-        console.error("Не удалось показать секцию после ошибки", e);
-    }
+    errorHandler.handleError(error, message);
 }
 
 // Функция для показа ошибки
