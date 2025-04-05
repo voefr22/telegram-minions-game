@@ -1,228 +1,123 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="description" content="Minions Game - Interactive Telegram WebApp">
-    <meta name="theme-color" content="#FFE500">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Minions - Telegram WebApp</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minions Game</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://telegram.org">
-    <link rel="preload" as="image" href="images/minion.png">
 </head>
 <body>
     <!-- Splash Screen -->
-    <div id="splash-screen" class="splash" role="alert" aria-live="polite">
+    <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
-            <div class="splash-minion" aria-hidden="true"></div>
-            <h1>Minions</h1>
-            <div class="loading-indicator">
-                <div class="loading-spinner" aria-label="Loading"></div>
-                <p>Загрузка игры...</p>
+            <img src="assets/images/splash-logo.png" alt="Game Logo" class="splash-logo">
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
             </div>
         </div>
     </div>
 
-    <!-- Confetti Container -->
-    <div id="confetti-container" aria-hidden="true"></div>
-
-    <!-- Popup Message -->
-    <div id="popup-message" class="popup" role="alert" aria-live="polite"></div>
-
-    <!-- Box Animation Container -->
-    <div id="box-animation-container" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <img id="box-image" src="" alt="Бокс">
-            <div id="box-reward" aria-live="polite"></div>
-        </div>
-    </div>
-
-    <!-- Fortune Wheel Container -->
-    <div id="wheel-container" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <h2>Колесо фортуны</h2>
-            <div id="fortune-wheel" aria-label="Колесо фортуны">
-                <div id="wheel-pointer" aria-hidden="true"></div>
+    <!-- Main Game Container -->
+    <div id="game-container" class="game-container" style="display: none;">
+        <!-- Navigation -->
+        <nav class="game-nav">
+            <div class="nav-item active" data-section="tasks">
+                <img src="assets/icons/tasks.png" alt="Tasks" class="nav-icon">
+                <span>Tasks</span>
             </div>
-            <div id="wheel-result" aria-live="polite"></div>
-        </div>
-    </div>
+            <div class="nav-item" data-section="boxes">
+                <img src="assets/icons/boxes.png" alt="Boxes" class="nav-icon">
+                <span>Boxes</span>
+            </div>
+            <div class="nav-item" data-section="friends">
+                <img src="assets/icons/friends.png" alt="Friends" class="nav-icon">
+                <span>Friends</span>
+            </div>
+            <div class="nav-item" data-section="profile">
+                <img src="assets/icons/profile.png" alt="Profile" class="nav-icon">
+                <span>Profile</span>
+            </div>
+        </nav>
 
-    <!-- Level Up Container -->
-    <div id="level-up-container" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <div class="level-up-content">
-                <h2>Новый уровень!</h2>
-                <div id="new-level" aria-live="polite"></div>
-                <div id="level-up-rewards">
-                    Награда за уровень добавлена
+        <!-- Game Sections -->
+        <div class="sections-container">
+            <!-- Tasks Section -->
+            <section id="tasks-section" class="game-section active-section">
+                <h2>Daily Tasks</h2>
+                <div class="task-list"></div>
+            </section>
+
+            <!-- Boxes Section -->
+            <section id="boxes-section" class="game-section">
+                <h2>Mystery Boxes</h2>
+                <div class="boxes-grid">
+                    <button class="box-button" data-box-type="common">
+                        <img src="assets/images/common-box.png" alt="Common Box">
+                        <span>Common Box</span>
+                        <div class="cost">10 🍌</div>
+                    </button>
+                    <button class="box-button" data-box-type="rare">
+                        <img src="assets/images/rare-box.png" alt="Rare Box">
+                        <span>Rare Box</span>
+                        <div class="cost">50 🍌</div>
+                    </button>
+                    <button class="box-button" data-box-type="epic">
+                        <img src="assets/images/epic-box.png" alt="Epic Box">
+                        <span>Epic Box</span>
+                        <div class="cost">100 🍌</div>
+                    </button>
                 </div>
+            </section>
+
+            <!-- Friends Section -->
+            <section id="friends-section" class="game-section">
+                <h2>Friends</h2>
+                <div class="friends-list"></div>
+                <button class="invite-button">Invite Friends</button>
+            </section>
+
+            <!-- Profile Section -->
+            <section id="profile-section" class="game-section">
+                <h2>Profile</h2>
+                <div class="profile-stats">
+                    <div class="level-info">
+                        <h3>Level <span class="current-level">1</span></h3>
+                        <div class="level-progress"></div>
+                    </div>
+                    <div class="achievements">
+                        <h3>Achievements</h3>
+                        <div class="achievements-list"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Resource Stats -->
+        <div class="resource-stats">
+            <div class="resource bananas">
+                <img src="assets/icons/banana.png" alt="Bananas">
+                <span class="banana-count">0</span>
+            </div>
+            <div class="resource stars">
+                <img src="assets/icons/star.png" alt="Stars">
+                <span class="star-count">0</span>
             </div>
         </div>
-    </div>
-
-    <header class="header">
-        <h1>Minions</h1>
-    </header>
-
-    <main class="container">
-        <!-- Resources Stats -->
-        <section class="stats" aria-label="Ресурсы">
-            <div class="stats-grid">
-                <div class="stats-item tip-button" data-tip="bananas" role="button" tabindex="0">
-                    <img src="images/banana.png" alt="Banana icon" width="30" height="30" loading="lazy">
-                    <span id="bananas" aria-label="Количество бананов">0</span>
-                    <span>Бананы</span>
-                </div>
-                <div class="stats-item tip-button" data-tip="stars" role="button" tabindex="0">
-                    <img src="images/star.png" alt="Star icon" width="30" height="30" loading="lazy">
-                    <span id="stars" aria-label="Количество звезд">0</span>
-                    <span>Звезды</span>
-                </div>
-                <div class="stats-item tip-button" data-tip="level" role="button" tabindex="0">
-                    <img src="images/level.png" alt="Level icon" width="30" height="30" loading="lazy">
-                    <span id="level" aria-label="Текущий уровень">1</span>
-                    <span>Уровень</span>
-                </div>
-            </div>
-        </section>
 
         <!-- Interactive Minion -->
-        <div id="interactive-minion" class="interactive-minion" role="button" tabindex="0" aria-label="Интерактивный миньон"></div>
-        
-        <!-- Daily Reward -->
-        <section id="daily-reward-container" class="daily-reward" aria-label="Ежедневная награда">
-            <h2 class="daily-reward-title">Ежедневная награда!</h2>
-            <button id="daily-reward-btn" class="daily-reward-button" aria-label="Получить ежедневную награду">🎁</button>
-            <div class="daily-streak">Дней подряд: <span id="streak-count">0</span></div>
-        </section>
+        <div class="interactive-minion">
+            <img src="assets/images/minion.png" alt="Click Me!">
+        </div>
+    </div>
 
-        <!-- Reward Animation -->
-        <div id="reward-animation" aria-hidden="true"></div>
+    <!-- Modals and Overlays -->
+    <div class="popup-message"></div>
+    <div class="box-animation-container"></div>
+    <div class="fortune-wheel-container"></div>
+    <div class="level-up-container"></div>
+    <div class="confetti-container"></div>
 
-        <!-- Tasks Section -->
-        <section id="tasks-section" class="section tasks-section" aria-label="Задания">
-            <h2 class="section-heading">Задания <button class="tip-button" data-tip="tasks" aria-label="Информация о заданиях">❓</button></h2>
-            <div class="tasks-grid">
-                <!-- Task items will be dynamically generated -->
-            </div>
-        </section>
-
-        <!-- Boxes Section -->
-        <section id="boxes-section" class="section boxes-section" aria-label="Боксы">
-            <h2 class="section-heading">Боксы</h2>
-            <div class="boxes-grid">
-                <article class="box" data-type="simple" role="button" tabindex="0">
-                    <img class="box-img" src="images/box_simple.png" alt="Простой бокс" loading="lazy">
-                    <p>10 🍌</p>
-                    <div class="box-label">Простой</div>
-                </article>
-                
-                <article class="box" data-type="standard" role="button" tabindex="0">
-                    <img class="box-img" src="images/box_standard.png" alt="Стандартный бокс" loading="lazy">
-                    <p>25 🍌</p>
-                    <div class="box-label">Стандартный</div>
-                </article>
-                
-                <article class="box" data-type="premium" role="button" tabindex="0">
-                    <img class="box-img" src="images/box_premium.png" alt="Премиум бокс" loading="lazy">
-                    <p>5 ⭐</p>
-                    <div class="box-label">Премиум</div>
-                </article>
-                
-                <article class="box" data-type="mega" role="button" tabindex="0">
-                    <img class="box-img" src="images/box_mega.png" alt="Мега бокс" loading="lazy">
-                    <p>15 ⭐</p>
-                    <div class="box-label">Мега</div>
-                </article>
-            </div>
-
-            <div class="fortune-wheel-container">
-                <h3>Колесо фортуны</h3>
-                <p>Испытайте удачу и получите ценные призы!</p>
-                <button id="wheel-button" class="action-button">Крутить (3 ⭐)</button>
-            </div>
-        </section>
-
-        <!-- Friends Section -->
-        <section id="friends-section" class="section friends-section" aria-label="Друзья">
-            <h2 class="section-heading">Друзья</h2>
-            <p>Пригласите друзей и получите бонусы!</p>
-            <button id="invite-button" class="action-button">Пригласить друзей</button>
-            <div class="friends-list">
-                <h3>Приглашенные друзья: <span id="invited-friends">0</span></h3>
-            </div>
-        </section>
-
-        <!-- Profile Section -->
-        <section id="profile-section" class="section profile-section" aria-label="Профиль">
-            <h2 class="section-heading">Профиль</h2>
-            <div class="profile-header">
-                <div class="profile-avatar" aria-hidden="true"></div>
-                <div class="profile-info">
-                    <h3 id="user-name">Игрок</h3>
-                    <div class="profile-level-badge">Уровень <span id="profile-level">1</span></div>
-                </div>
-            </div>
-            
-            <div class="profile-stats">
-                <h4>Статистика</h4>
-                <div class="stats-grid">
-                    <div class="stat-row">
-                        <span>Всего бананов:</span>
-                        <span id="total-bananas">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span>Всего звезд:</span>
-                        <span id="total-stars">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span>Выполнено заданий:</span>
-                        <span id="completed-tasks">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span>Открыто боксов:</span>
-                        <span id="opened-boxes">0</span>
-                    </div>
-                    <div class="stat-row">
-                        <span>Активных дней:</span>
-                        <span id="active-days">1</span>
-                    </div>
-                </div>
-                <div class="level-progress-container">
-                    <span>Прогресс уровня:</span>
-                    <div class="progress-bar">
-                        <div id="level-progress" class="progress" style="width: 0%;"></div>
-                    </div>
-                    <div class="task-counter" id="level-counter">0/100</div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav" role="navigation" aria-label="Основное меню">
-        <button class="nav-item active" data-section="tasks" aria-label="Задания">
-            <span class="nav-icon">📋</span>
-            <span class="nav-text">Задания</span>
-        </button>
-        <button class="nav-item" data-section="boxes" aria-label="Боксы">
-            <span class="nav-icon">📦</span>
-            <span class="nav-text">Боксы</span>
-        </button>
-        <button class="nav-item" data-section="friends" aria-label="Друзья">
-            <span class="nav-icon">👥</span>
-            <span class="nav-text">Друзья</span>
-        </button>
-        <button class="nav-item" data-section="profile" aria-label="Профиль">
-            <span class="nav-icon">👤</span>
-            <span class="nav-text">Профиль</span>
-        </button>
-    </nav>
-
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
