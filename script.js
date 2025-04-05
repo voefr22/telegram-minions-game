@@ -2466,3 +2466,265 @@ function updateShopPrices() {
         console.error('Ошибка при обновлении цен в магазине:', e);
     }
 }
+
+// Функция для проверки и восстановления раздела заданий
+function fixTasksSection() {
+  const tasksSection = document.getElementById('tasks-section');
+  if (!tasksSection) return;
+  
+  // Проверяем, есть ли внутренний контент
+  if (!tasksSection.querySelector('.tasks') || !tasksSection.querySelector('.task')) {
+    console.log("Восстанавливаем раздел заданий");
+    
+    // Создаем контейнер для заданий, если его нет
+    let tasksContainer = tasksSection.querySelector('.tasks');
+    if (!tasksContainer) {
+      tasksContainer = document.createElement('div');
+      tasksContainer.className = 'tasks';
+      tasksSection.appendChild(tasksContainer);
+    }
+    
+    // Очищаем контейнер и добавляем задания заново
+    tasksContainer.innerHTML = '';
+    
+    // Массив с данными для заданий
+    const tasksData = [
+      { id: 1, title: "Пригласи 10 друзей", reward: "+100 🍌", maxProgress: 10 },
+      { id: 2, title: "Открой премиум-кейс", reward: "+50 🍌", maxProgress: 1 },
+      { id: 3, title: "Накорми 5 миньонов", reward: "+20 🍌", maxProgress: 5 },
+      { id: 4, title: "Собери 30 бананов", reward: "+5 ⭐", maxProgress: 30 },
+      { id: 5, title: "Открой 5 боксов", reward: "+10 ⭐", maxProgress: 5 },
+      { id: 6, title: "Достигни 3 уровня", reward: "+15 ⭐", maxProgress: 3 }
+    ];
+    
+    // Создаем HTML для каждого задания
+    tasksData.forEach(task => {
+      const taskDiv = document.createElement('div');
+      taskDiv.className = 'task';
+      taskDiv.innerHTML = `
+        <div class="task-header">
+          <div class="task-title">${task.title}</div>
+          <div class="task-reward">${task.reward}</div>
+        </div>
+        <div class="progress-bar">
+          <div id="task${task.id}-progress" class="progress" style="width: 0%;"></div>
+        </div>
+        <div class="task-counter" id="task${task.id}-counter">0/${task.maxProgress}</div>
+      `;
+      tasksContainer.appendChild(taskDiv);
+    });
+    
+    // Обновляем прогресс заданий
+    updateTaskProgress();
+  }
+}
+
+// Вызываем эту функцию после загрузки DOM и в обработчике переключения на секцию заданий
+document.addEventListener('DOMContentLoaded', function() {
+  fixTasksSection();
+  
+  // Также добавляем проверку при переключении на раздел заданий
+  document.querySelectorAll('.menu-item[data-section="tasks-section"]').forEach(item => {
+    item.addEventListener('click', function() {
+      setTimeout(fixTasksSection, 100); // Небольшая задержка для уверенности
+    });
+  });
+});
+
+function fixFarmSection() {
+    // Check if farm menu item exists
+    const farmMenuItem = document.querySelector('.menu-item[data-section="farm-section"]');
+    if (!farmMenuItem) {
+        // Create farm menu item if it doesn't exist
+        const menuItem = document.createElement('div');
+        menuItem.className = 'menu-item';
+        menuItem.setAttribute('data-section', 'farm-section');
+        menuItem.textContent = 'Ферма';
+        
+        const bottomMenu = document.querySelector('.bottom-menu');
+        if (bottomMenu) {
+            // Insert before profile and settings
+            const profileItem = document.querySelector('.menu-item[data-section="profile-section"]');
+            if (profileItem) {
+                bottomMenu.insertBefore(menuItem, profileItem);
+            } else {
+                bottomMenu.appendChild(menuItem);
+            }
+        }
+    }
+
+    // Check if farm section exists
+    const farmSection = document.getElementById('farm-section');
+    if (!farmSection) {
+        // Create farm section if it doesn't exist
+        const section = document.createElement('div');
+        section.id = 'farm-section';
+        section.className = 'section hidden-section';
+        
+        // Add farm section content
+        section.innerHTML = `
+            <h2 class="section-heading">Ферма миньонов <span class="tip-button" data-tip="farm">❓</span></h2>
+            
+            <div class="farm-stats">
+                <div class="farm-stat">
+                    <span>Миньоны:</span>
+                    <span id="farm-minions-count">0</span>
+                </div>
+                <div class="farm-stat">
+                    <span>Бананы в час:</span>
+                    <span id="farm-bananas-rate">0</span>
+                </div>
+                <div class="farm-stat">
+                    <span>Последний сбор:</span>
+                    <span id="farm-last-collect">-</span>
+                </div>
+            </div>
+            
+            <button id="farm-collect-btn" class="action-button">Собрать бананы</button>
+            
+            <div class="farm-minions-container">
+                <!-- Миньоны будут добавлены динамически -->
+            </div>
+            
+            <div class="farm-upgrades">
+                <h3>Улучшения фермы</h3>
+                <!-- Улучшения будут добавлены динамически -->
+            </div>
+        `;
+        
+        // Add farm section to main container
+        const mainContainer = document.querySelector('.main-container');
+        if (mainContainer) {
+            mainContainer.appendChild(section);
+        }
+    }
+
+    // Initialize farm state if not already initialized
+    if (!gameState.farm) {
+        initFarmState();
+    }
+
+    // Add click handler for farm menu item
+    const menuItem = document.querySelector('.menu-item[data-section="farm-section"]');
+    if (menuItem) {
+        menuItem.addEventListener('click', () => {
+            switchSection('farm-section');
+            updateFarmUI();
+        });
+    }
+
+    // Initialize farm handlers
+    initFarmHandlers();
+}
+
+// Add event listener for DOM content loaded
+document.addEventListener('DOMContentLoaded', () => {
+    fixFarmSection();
+});
+
+// Add event listener for section switching
+document.addEventListener('sectionSwitched', (event) => {
+    if (event.detail.section === 'farm-section') {
+        fixFarmSection();
+    }
+});
+
+// Функция для исправления навигации в главный раздел
+function fixMainSectionNavigation() {
+    // Проверяем, есть ли пункт меню для главного экрана
+    let mainMenuItem = document.querySelector('.menu-item[data-section="main-screen"]');
+    
+    // Если пункта меню нет, создаём его
+    if (!mainMenuItem) {
+        const bottomMenu = document.querySelector('.bottom-menu');
+        if (bottomMenu) {
+            mainMenuItem = document.createElement('div');
+            mainMenuItem.className = 'menu-item';
+            mainMenuItem.setAttribute('data-section', 'main-screen');
+            mainMenuItem.textContent = 'Главная';
+            
+            // Вставляем в начало меню
+            if (bottomMenu.firstChild) {
+                bottomMenu.insertBefore(mainMenuItem, bottomMenu.firstChild);
+            } else {
+                bottomMenu.appendChild(mainMenuItem);
+            }
+        }
+    }
+    
+    // Обновляем обработчик события для пункта главного меню
+    if (mainMenuItem) {
+        mainMenuItem.removeEventListener('click', null);
+        mainMenuItem.addEventListener('click', function() {
+            console.log("Переключение на главный экран");
+            showSection('main-screen');
+            playSound('click');
+            vibrate(30);
+        });
+    }
+    
+    // Исправляем функцию showSection для корректной работы с main-screen
+    if (typeof showSection === 'function') {
+        const originalShowSection = showSection;
+        window.showSection = function(sectionId) {
+            console.log("Вызов showSection с:", sectionId);
+            
+            // Убедимся, что main-screen обрабатывается корректно
+            if (sectionId === 'main-screen' || sectionId === 'main') {
+                const mainScreen = document.getElementById('main-screen');
+                if (mainScreen) {
+                    // Скрываем все секции
+                    document.querySelectorAll('.section, [id$="-section"]').forEach(section => {
+                        section.style.display = 'none';
+                        section.classList.remove('active-section');
+                    });
+                    
+                    // Показываем главный экран
+                    mainScreen.style.display = 'block';
+                    mainScreen.classList.add('active-section');
+                    
+                    // Обновляем активный пункт меню
+                    document.querySelectorAll('.menu-item').forEach(item => {
+                        item.classList.remove('active');
+                        if (item.getAttribute('data-section') === 'main-screen') {
+                            item.classList.add('active');
+                        }
+                    });
+                    
+                    return;
+                }
+            }
+            
+            // Для других разделов используем оригинальную функцию
+            originalShowSection(sectionId);
+        };
+    }
+    
+    // Добавляем кнопку возврата в главный экран на все разделы
+    document.querySelectorAll('.section-heading').forEach(heading => {
+        if (!heading.querySelector('.back-to-main')) {
+            const backButton = document.createElement('span');
+            backButton.className = 'back-to-main';
+            backButton.innerHTML = '« Главная';
+            backButton.style.cssText = 'cursor:pointer; margin-left:10px; font-size:0.8em; color:#FF8C00;';
+            backButton.addEventListener('click', function() {
+                showSection('main-screen');
+                playSound('click');
+            });
+            
+            heading.appendChild(backButton);
+        }
+    });
+}
+
+// Вызываем функцию после загрузки DOM
+document.addEventListener('DOMContentLoaded', fixMainSectionNavigation);
+
+// Также можем добавить её в инициализацию UI
+if (typeof initializeUI === 'function') {
+    const originalInitializeUI = initializeUI;
+    initializeUI = function() {
+        originalInitializeUI();
+        fixMainSectionNavigation();
+    };
+}
