@@ -216,16 +216,21 @@
     <div id="popup-message" class="popup-message"></div>
 
     <!-- Box animation container -->
-    <div id="box-animation-container" class="box-animation-container">
-        <div id="box-image" class="box-image"></div>
-        <div id="box-reward" class="box-reward"></div>
+    <div id="box-animation-container" class="modal-container">
+        <div class="close-btn" onclick="closeModal('box-animation-container')">✖</div>
+        <div class="box-animation-content">
+            <img id="box-image" src="images/box_simple.png" alt="Бокс">
+            <div id="box-reward" class="box-reward"></div>
+        </div>
     </div>
 
     <!-- Level up animation container -->
-    <div id="level-up-container" class="level-up-container">
+    <div id="level-up-container" class="modal-container">
+        <div class="close-btn" onclick="closeModal('level-up-container')">✖</div>
         <div class="level-up-content">
             <h2>Уровень повышен!</h2>
-            <p>Вы достигли <span id="new-level">2</span> уровня!</p>
+            <div class="level-number" id="new-level">2</div>
+            <p>Поздравляем! Вы достигли нового уровня!</p>
         </div>
     </div>
 
@@ -246,6 +251,19 @@
     <div class="settings-button">
         <button id="sound-toggle" class="settings-toggle">🔊</button>
         <button id="vibration-toggle" class="settings-toggle">📳</button>
+    </div>
+
+    <!-- Wheel container -->
+    <div id="wheel-container" class="modal-container">
+        <div class="close-btn" onclick="closeModal('wheel-container')">✖</div>
+        <div class="wheel-content">
+            <h2>Колесо фортуны</h2>
+            <div class="wheel-container">
+                <img id="fortune-wheel" src="images/wheel.png" alt="Колесо фортуны">
+            </div>
+            <div id="wheel-result" class="wheel-result"></div>
+            <button id="wheel-button" class="action-button">Крутить (30 бананов)</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
