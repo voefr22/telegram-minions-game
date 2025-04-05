@@ -155,7 +155,66 @@ function inviteFriend() {
         // Если приложение запущено в Telegram, используем его функционал
         if (tg) {
             try {
-                tg.shareGame('minions_game_bot');
+                // Создаем уникальную реферальную ссылку для отслеживания
+                const userId = tg.initDataUnsafe?.user?.id || settings.userId || 'anonymous';
+                const refLink = `https://t.me/minions_game_bot?start=ref_${userId}`;
+                
+                // Текст для приглашения
+                const inviteText = `🍌 Присоединяйся ко мне в игре Minions! Собирай бананы, открывай боксы и развивай свою ферму миньонов! ${refLink}`;
+                
+                // Пробуем использовать shareGame или fallback на обычный share
+                if (tg.shareGame) {
+                    tg.shareGame({
+                        text: inviteText,
+                        url: refLink
+                    });
+                } else if (tg.share) {
+                    tg.share({
+                        text: inviteText,
+                        url: refLink
+                    });
+                } else {
+                    // Если API share недоступен, используем clipboardText
+                    if (tg.showAlert) {
+                        tg.showAlert('Ссылка скопирована в буфер обмена. Поделитесь ею с друзьями!');
+                    }
+                    if (tg.clipboard && tg.clipboard.setText) {
+                        tg.clipboard.setText(inviteText);
+                    } else {
+                        navigator.clipboard.writeText(inviteText).catch(e => 
+                            console.error('Не удалось скопировать текст:', e)
+                        );
+                    }
+                }
+                
+                // Увеличиваем счетчик приглашенных друзей
+                gameState.invitedFriends++;
+                
+                // Обновляем прогресс задания
+                gameState.taskProgress.task1 = Math.min(10, gameState.invitedFriends);
+                updateTaskProgress();
+                
+                // Проверяем выполнение задания
+                if (gameState.invitedFriends >= 10 && gameState.taskProgress.task1 < 10) {
+                    completeTask(1);
+                }
+                
+                // Обновляем статистику и сохраняем
+                updateStats();
+                saveGameState();
+                
+                // Награда за приглашение
+                if (gameState.invitedFriends % 3 === 0) {
+                    // Каждые 3 приглашения даем дополнительную награду
+                    gameState.bananas += 15;
+                    gameState.totalBananas += 15;
+                    gameState.stars += 1;
+                    gameState.totalStars += 1;
+                    
+                    showPopup('Бонус за приглашения: +15 бананов, +1 звезда!');
+                    playSound('achievement');
+                    vibrate([100, 50, 100, 50, 100]);
+                }
             } catch (e) {
                 console.error('Ошибка при вызове shareGame:', e);
                 // Если shareGame не работает, пробуем показать сообщение
@@ -593,7 +652,9 @@ const sounds = {
     levelUp: new Audio('https://cdn.freesound.org/previews/522/522616_2336793-lq.mp3'),
     minionHappy: new Audio('https://cdn.freesound.org/previews/539/539050_12274768-lq.mp3'),
     minionJump: new Audio('https://cdn.freesound.org/previews/444/444921_9159316-lq.mp3'),
-    minionShocked: new Audio('https://cdn.freesound.org/previews/554/554056_8164871-lq.mp3')
+    minionShocked: new Audio('https://cdn.freesound.org/previews/554/554056_8164871-lq.mp3'),
+    box_appear: new Audio('https://cdn.freesound.org/previews/341/341695_5858296-lq.mp3'),
+    box_shake: new Audio('https://cdn.freesound.org/previews/341/341695_5858296-lq.mp3')
 };
 
 // Настройки
@@ -895,10 +956,11 @@ async function init() {
             console.error('Ошибка при загрузке настроек, используем значения по умолчанию', e);
         }
         
-        // Предзагрузка изображений
+        // Предзагрузка изображений с правильным отслеживанием прогресса
         try {
             preloadResources(() => {
                 // Загрузка ресурсов завершена
+                console.log("Предзагрузка изображений завершена");
             });
         } catch (e) {
             console.error('Ошибка при предзагрузке изображений', e);
@@ -912,7 +974,15 @@ async function init() {
                 
                 const userNameElement = document.getElementById('user-name');
                 if (userNameElement) {
-                    userNameElement.textContent = user.username || 'Игрок';
+                    userNameElement.textContent = user.username || user.first_name || 'Игрок';
+                }
+                
+                // Устанавливаем аватар пользователя, если он есть
+                if (user.photo_url) {
+                    const avatarElements = document.querySelectorAll('.profile-avatar, .profile-avatar-small');
+                    avatarElements.forEach(elem => {
+                        elem.style.backgroundImage = `url('${user.photo_url}')`;
+                    });
                 }
                 
                 // Включаем синхронизацию
@@ -935,6 +1005,9 @@ async function init() {
                         console.error('Ошибка при загрузке из localStorage', e);
                     }
                 }
+                
+                // Проверяем реферальную ссылку
+                checkReferralLink();
             } catch (e) {
                 console.error('Ошибка при обработке данных Telegram', e);
             }
@@ -959,9 +1032,12 @@ async function init() {
             console.error('Ошибка при обновлении статистики', e);
         }
         
-        // Инициализация UI
+        // Инициализация UI и новых секций
         try {
             initializeUI();
+            initFarmState();
+            initShop();
+            initMainScreen();
         } catch (e) {
             console.error('Ошибка при инициализации UI', e);
         }
@@ -974,9 +1050,8 @@ async function init() {
                     setTimeout(function() {
                         gameElements.splashScreen.style.display = 'none';
                         
-                        // Показываем последнюю активную секцию или главный экран
-                        const lastSection = localStorage.getItem('lastActiveSection') || 'main-screen';
-                        showSection(lastSection);
+                        // Показываем первую секцию (главный экран)
+                        showSection('main-screen');
                     }, 500);
                     
                     // Проигрываем приветственный звук
@@ -1339,208 +1414,291 @@ function safeExecute(func, errorMessage, fallback) {
 
 // Открытие бокса
 function openBox(type) {
-  console.log("Открытие бокса:", type);
-  
-  let canOpen = false;
-  let rewardText = '';
-  
-  switch(type) {
-    case 'simple':
-      if (gameState.bananas >= 10) {
-        gameState.bananas -= 10;
-        canOpen = true;
+    return safeExecute(() => {
+        console.log("Открытие бокса:", type);
         
-        // Случайная награда
-        let reward = Math.floor(Math.random() * 3) + 1;
-        if (reward === 1) {
-          // Банан
-          gameState.bananas += 15;
-          gameState.totalBananas += 15;
-          rewardText = '+15 бананов';
-        } else if (reward === 2) {
-          // Опыт
-          addExperience(5);
-          rewardText = '+5 опыта';
+        let canOpen = false;
+        let rewardText = '';
+        
+        switch(type) {
+            case 'simple':
+                if (gameState.bananas >= 10) {
+                    gameState.bananas -= 10;
+                    canOpen = true;
+                    
+                    // Случайные награды с балансом
+                    const reward = Math.random();
+                    if (reward < 0.6) {
+                        // 60% шанс на бананы (5-15)
+                        const bananas = Math.floor(Math.random() * 11) + 5;
+                        gameState.bananas += bananas;
+                        gameState.totalBananas += bananas;
+                        rewardText = `+${bananas} бананов`;
+                    } else if (reward < 0.9) {
+                        // 30% шанс на опыт (5-10)
+                        const exp = Math.floor(Math.random() * 6) + 5;
+                        addExperience(exp);
+                        rewardText = `+${exp} опыта`;
+                    } else {
+                        // 10% шанс на звезду
+                        gameState.stars += 1;
+                        gameState.totalStars += 1;
+                        rewardText = '+1 звезда';
+                    }
+                }
+                break;
+                
+            case 'standard':
+                if (gameState.bananas >= 25) {
+                    gameState.bananas -= 25;
+                    canOpen = true;
+                    
+                    // Улучшенные награды
+                    const reward = Math.random();
+                    if (reward < 0.5) {
+                        // 50% шанс на бананы (15-30)
+                        const bananas = Math.floor(Math.random() * 16) + 15;
+                        gameState.bananas += bananas;
+                        gameState.totalBananas += bananas;
+                        rewardText = `+${bananas} бананов`;
+                    } else if (reward < 0.8) {
+                        // 30% шанс на опыт (10-20)
+                        const exp = Math.floor(Math.random() * 11) + 10;
+                        addExperience(exp);
+                        rewardText = `+${exp} опыта`;
+                    } else {
+                        // 20% шанс на звезды (1-3)
+                        const stars = Math.floor(Math.random() * 3) + 1;
+                        gameState.stars += stars;
+                        gameState.totalStars += stars;
+                        rewardText = `+${stars} звезд`;
+                    }
+                }
+                break;
+                
+            case 'premium':
+                if (gameState.stars >= 5) {
+                    gameState.stars -= 5;
+                    canOpen = true;
+                    
+                    // Премиум награды
+                    const reward = Math.random();
+                    if (reward < 0.4) {
+                        // 40% шанс на бананы (40-80)
+                        const bananas = Math.floor(Math.random() * 41) + 40;
+                        gameState.bananas += bananas;
+                        gameState.totalBananas += bananas;
+                        rewardText = `+${bananas} бананов`;
+                    } else if (reward < 0.7) {
+                        // 30% шанс на опыт (20-40)
+                        const exp = Math.floor(Math.random() * 21) + 20;
+                        addExperience(exp);
+                        rewardText = `+${exp} опыта`;
+                    } else if (reward < 0.95) {
+                        // 25% шанс на звезды (3-6)
+                        const stars = Math.floor(Math.random() * 4) + 3;
+                        gameState.stars += stars;
+                        gameState.totalStars += stars;
+                        rewardText = `+${stars} звезд`;
+                    } else {
+                        // 5% шанс на временный буст
+                        if (!gameState.boosts) gameState.boosts = {};
+                        const now = Date.now();
+                        gameState.boosts.doubleXPUntil = now + (60 * 60 * 1000); // 1 час
+                        rewardText = 'Двойной опыт на 1 час!';
+                    }
+                    
+                    // Отмечаем задание на открытие премиум-кейса
+                    if (gameState.taskProgress.task2 < 1) {
+                        gameState.taskProgress.task2 = 1;
+                        completeTask(2);
+                    }
+                }
+                break;
+                
+            case 'mega':
+                if (gameState.stars >= 15) {
+                    gameState.stars -= 15;
+                    canOpen = true;
+                    
+                    // Мега награды
+                    const reward = Math.random();
+                    if (reward < 0.35) {
+                        // 35% шанс на бананы (80-150)
+                        const bananas = Math.floor(Math.random() * 71) + 80;
+                        gameState.bananas += bananas;
+                        gameState.totalBananas += bananas;
+                        rewardText = `+${bananas} бананов`;
+                    } else if (reward < 0.65) {
+                        // 30% шанс на опыт (40-80)
+                        const exp = Math.floor(Math.random() * 41) + 40;
+                        addExperience(exp);
+                        rewardText = `+${exp} опыта`;
+                    } else if (reward < 0.9) {
+                        // 25% шанс на звезды (5-10)
+                        const stars = Math.floor(Math.random() * 6) + 5;
+                        gameState.stars += stars;
+                        gameState.totalStars += stars;
+                        rewardText = `+${stars} звезд`;
+                    } else {
+                        // 10% шанс на редкий предмет
+                        // Автоматический сбор бананов в течение 3 часов
+                        if (!gameState.boosts) gameState.boosts = {};
+                        const now = Date.now();
+                        
+                        // 5% шанс на двойной опыт, 5% на автокликер
+                        if (Math.random() < 0.5) {
+                            gameState.boosts.doubleXPUntil = now + (3 * 60 * 60 * 1000); // 3 часа
+                            rewardText = 'Двойной опыт на 3 часа!';
+                        } else {
+                            gameState.boosts.autoClickerUntil = now + (3 * 60 * 60 * 1000); // 3 часа
+                            startAutoClicker();
+                            rewardText = 'Авто-кликер на 3 часа!';
+                        }
+                    }
+                }
+                break;
+        }
+        
+        if (canOpen) {
+            // Увеличиваем счетчик открытых боксов
+            gameState.openedBoxes++;
+            
+            // Проверяем задание на открытие боксов
+            if (gameState.openedBoxes >= 5 && gameState.taskProgress.task5 < 1) {
+                gameState.taskProgress.task5 = 1;
+                completeTask(5);
+            }
+            
+            // Обновляем статистику и сохраняем игру
+            updateStats();
+            saveGameState();
+            
+            // Показываем анимацию и оповещение
+            showBoxAnimation(type, rewardText);
+            
+            return true;
         } else {
-          // Больше бананов
-          gameState.bananas += 12;
-          gameState.totalBananas += 12;
-          rewardText = '+12 бананов';
+            // Показываем сообщение о недостатке ресурсов
+            showPopup('Недостаточно ресурсов!');
+            playSound('minionShocked');
+            return false;
         }
-      }
-      break;
-      
-    case 'standard':
-      if (gameState.bananas >= 25) {
-        gameState.bananas -= 25;
-        canOpen = true;
-        
-        // Случайная награда
-        reward = Math.floor(Math.random() * 3) + 1;
-        if (reward === 1) {
-          gameState.bananas += 35;
-          gameState.totalBananas += 35;
-          rewardText = '+35 бананов';
-        } else if (reward === 2) {
-          gameState.bananas += 30;
-          gameState.totalBananas += 30;
-          rewardText = '+30 бананов';
-        } else {
-          addExperience(10);
-          rewardText = '+10 опыта';
-        }
-      }
-      break;
-      
-    case 'premium':
-      if (gameState.bananas >= 50) {
-        gameState.bananas -= 50;
-        canOpen = true;
-        
-        // Случайная награда
-        reward = Math.floor(Math.random() * 3) + 1;
-        if (reward === 1) {
-          gameState.bananas += 80;
-          gameState.totalBananas += 80;
-          rewardText = '+80 бананов';
-        } else if (reward === 2) {
-          gameState.bananas += 65;
-          gameState.totalBananas += 65;
-          rewardText = '+65 бананов';
-        } else {
-          addExperience(25);
-          rewardText = '+25 опыта';
-        }
-        
-        // Отмечаем задание на открытие премиум-кейса
-        if (gameState.taskProgress.task2 < 1) {
-          gameState.taskProgress.task2 = 1;
-          completeTask(2);
-        }
-      }
-      break;
-      
-    case 'mega':
-      if (gameState.bananas >= 100) {
-        gameState.bananas -= 100;
-        canOpen = true;
-        
-        // Случайная награда
-        reward = Math.floor(Math.random() * 3) + 1;
-        if (reward === 1) {
-          gameState.bananas += 160;
-          gameState.totalBananas += 160;
-          rewardText = '+160 бананов';
-        } else if (reward === 2) {
-          gameState.bananas += 140;
-          gameState.totalBananas += 140;
-          rewardText = '+140 бананов';
-        } else {
-          addExperience(50);
-          rewardText = '+50 опыта';
-        }
-      }
-      break;
-  }
-  
-  if (canOpen) {
-    // Увеличиваем счетчик открытых боксов
-    gameState.openedBoxes++;
-    
-    // Проверяем задание на открытие боксов
-    if (gameState.openedBoxes >= 5 && gameState.taskProgress.task5 < 1) {
-      gameState.taskProgress.task5 = 1;
-      completeTask(5);
-    }
-    
-    // Обновляем статистику и сохраняем игру
-    updateStats();
-    saveGameState();
-    
-    // Показываем анимацию и оповещение
-    showBoxAnimation(type, rewardText);
-    
-    // Звуковой эффект и вибрация
-    playSound('box');
-    vibrate([100, 50, 200]);
-    
-    return true;
-  } else {
-    // Показываем сообщение о недостатке ресурсов
-    showPopup('Недостаточно бананов!');
-    playSound('minionShocked');
-    return false;
-  }
+    }, `Error opening box: ${type}`);
 }
 
 // Анимация открытия бокса
 function showBoxAnimation(type, rewardText) {
     try {
-        const container = document.getElementById('box-animation-container');
-        const boxImage = document.getElementById('box-image');
-        const boxReward = document.getElementById('box-reward');
-        
-        if (!container || !boxImage || !boxReward) {
-            console.warn('Элементы анимации бокса не найдены');
-            showPopup(rewardText);
+        const boxContainer = document.getElementById('box-animation-container');
+        if (!boxContainer) {
+            console.warn('Контейнер анимации бокса не найден');
+            showPopup(rewardText); // Показываем хотя бы сообщение
             return;
         }
         
-        // Устанавливаем изображение бокса
-        boxImage.src = `images/box_${type}.png`;
+        // Обновленная анимация
+        boxContainer.style.display = 'flex';
         
-        // Добавляем класс для VIP-боксов
-        if (type === 'premium' || type === 'mega') {
-            boxImage.classList.add('vip-box');
-        } else {
-            boxImage.classList.remove('vip-box');
-        }
-        
-        // Показываем контейнер
-        container.style.display = 'flex';
-        
-        // Анимация открытия бокса
-        setTimeout(() => {
-            // Добавляем класс для анимации тряски
-            boxImage.classList.add('shake');
+        // Устанавливаем картинку бокса
+        const boxImage = document.getElementById('box-image');
+        if (boxImage) {
+            boxImage.src = getImage(`box_${type}`);
             
-            // Показываем награду
+            // Добавляем эффекты перед началом анимации
+            boxImage.style.transform = 'scale(0.5)';
+            boxImage.style.opacity = '0';
+            
+            // Плавно показываем бокс
             setTimeout(() => {
-                // Удаляем класс тряски и добавляем класс открытия
-                boxImage.classList.remove('shake');
-                boxImage.classList.add('open');
+                boxImage.style.transform = 'scale(1)';
+                boxImage.style.opacity = '1';
                 
-                // Показываем награду
-                boxReward.textContent = rewardText;
+                // Звук появления бокса
+                playSound('box_appear');
                 
-                // Добавляем класс для VIP-наград
-                if (type === 'premium' || type === 'mega') {
-                    boxReward.classList.add('vip-reward');
-                } else {
-                    boxReward.classList.remove('vip-reward');
-                }
-                
-                boxReward.style.opacity = '1';
-                
-                // Звуковой эффект и вибрация
-                playSound('reward');
-                vibrate([100, 50, 100]);
-                
-                // Создаем эффект конфетти
-                createConfetti();
-            }, 1200); // После анимации тряски
-        }, 300);
+                // Начинаем анимацию через короткую задержку
+                setTimeout(() => {
+                    // Звук и вибрация перед тряской
+                    playSound('box_shake');
+                    vibrate([50, 30, 50, 30, 50]);
+                    
+                    boxImage.classList.add('shake');
+                    
+                    // После тряски открываем бокс
+                    setTimeout(() => {
+                        boxImage.classList.remove('shake');
+                        
+                        // Звук открытия
+                        playSound('box');
+                        vibrate([100, 50, 200]);
+                        
+                        // Анимация открытия
+                        boxImage.classList.add('open');
+                        
+                        // Показываем награду с небольшой задержкой
+                        setTimeout(() => {
+                            // Показываем награду
+                            const boxReward = document.getElementById('box-reward');
+                            if (boxReward) {
+                                boxReward.textContent = rewardText;
+                                boxReward.style.opacity = 1;
+                                boxReward.style.transform = 'scale(1)';
+                            }
+                            
+                            // Создаем эффект конфетти
+                            createConfetti(type === 'premium' || type === 'mega');
+                            
+                            // Звук награды
+                            playSound('reward');
+                            
+                            // Закрываем анимацию через 4 секунды
+                            setTimeout(() => {
+                                // Плавно скрываем элементы
+                                if (boxReward) {
+                                    boxReward.style.opacity = 0;
+                                    boxReward.style.transform = 'scale(0.8)';
+                                }
+                                
+                                boxImage.style.opacity = '0';
+                                boxImage.style.transform = 'scale(0.5)';
+                                
+                                // Полностью скрываем контейнер через короткую задержку
+                                setTimeout(() => {
+                                    boxImage.classList.remove('open');
+                                    boxContainer.style.display = 'none';
+                                    
+                                    // Сбрасываем стили
+                                    boxImage.style = '';
+                                    if (boxReward) boxReward.style = '';
+                                }, 500);
+                            }, 4000);
+                        }, 500);
+                    }, 1500);
+                }, 800);
+            }, 300);
+        } else {
+            console.warn('Элемент изображения бокса не найден');
+            showPopup(rewardText); // Показываем хотя бы сообщение
+            boxContainer.style.display = 'none';
+        }
     } catch (e) {
         console.error('Ошибка при анимации открытия бокса:', e);
-        showPopup(rewardText);
+        showPopup(rewardText); // Показываем хотя бы сообщение
     }
 }
 
 // Добавление опыта и проверка повышения уровня
 function addExperience(amount) {
     try {
-        // Формула для расчета опыта, необходимого для следующего уровня
-        const expNeeded = Math.floor(100 * Math.pow(1.5, gameState.level - 1));
+        // Используем новую формулу для расчета необходимого опыта
+        const expNeeded = getExpForNextLevel(gameState.level);
+        
+        // Проверяем, активен ли буст двойного опыта
+        if (gameState.boosts && gameState.boosts.doubleXPUntil && Date.now() < gameState.boosts.doubleXPUntil) {
+            // Удваиваем получаемый опыт
+            amount *= 2;
+        }
         
         // Текущий опыт для данного уровня
         let currentExp = gameState.exp || 0;
@@ -1554,14 +1712,16 @@ function addExperience(amount) {
             // Остаток опыта переносим на следующий уровень
             gameState.exp = currentExp - expNeeded;
             
-            // Награда за новый уровень
-            gameState.bananas += 10 * gameState.level;
-            gameState.totalBananas += 10 * gameState.level;
-            gameState.stars += Math.floor(gameState.level / 2) + 1;
-            gameState.totalStars += Math.floor(gameState.level / 2) + 1;
+            // Награда за новый уровень по обновленной формуле
+            const reward = calculateLevelReward(gameState.level);
+            
+            gameState.bananas += reward.bananas;
+            gameState.totalBananas += reward.bananas;
+            gameState.stars += reward.stars;
+            gameState.totalStars += reward.stars;
             
             // Показываем анимацию и уведомление
-            showLevelUpAnimation();
+            showLevelUpAnimation(reward);
             
             // Проверяем задание "Достигни 3 уровня"
             if (gameState.level >= 3 && gameState.taskProgress.task6 < 1) {
@@ -1602,7 +1762,7 @@ function updateLevelProgress() {
 }
 
 // Анимация повышения уровня
-function showLevelUpAnimation() {
+function showLevelUpAnimation(reward) {
     try {
         const container = document.getElementById('level-up-container');
         if (!container) {
@@ -1617,6 +1777,26 @@ function showLevelUpAnimation() {
         const newLevel = document.getElementById('new-level');
         if (newLevel) {
             newLevel.textContent = gameState.level;
+        }
+        
+        // Показываем награду за уровень
+        const levelUpContent = container.querySelector('.level-up-content');
+        if (levelUpContent && reward) {
+            // Добавляем информацию о награде
+            const rewardInfo = document.createElement('div');
+            rewardInfo.className = 'level-reward-info';
+            rewardInfo.innerHTML = `
+                <div class="reward-item">+${reward.bananas} 🍌</div>
+                <div class="reward-item">+${reward.stars} ⭐</div>
+            `;
+            
+            // Добавляем после параграфа с поздравлением
+            const congratsText = levelUpContent.querySelector('p');
+            if (congratsText) {
+                levelUpContent.insertBefore(rewardInfo, congratsText.nextSibling);
+            } else {
+                levelUpContent.appendChild(rewardInfo);
+            }
         }
         
         // Звуковой эффект и вибрация
@@ -2083,4 +2263,206 @@ function updateFarmUI() {
         
         btn.disabled = gameState.bananas < cost || level >= 5;
     });
+}
+
+// Обновление функции для учета приглашенных пользователей
+function checkReferralLink() {
+    try {
+        // Проверка, запущено ли приложение по реферальной ссылке
+        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+            const startParam = tg.initDataUnsafe.start_param;
+            
+            // Проверяем, является ли это реферальной ссылкой
+            if (startParam.startsWith('ref_')) {
+                const referrerId = startParam.replace('ref_', '');
+                
+                // Отправляем запрос на сервер для учета реферала
+                if (settings.serverSync) {
+                    fetch(`${SERVER_URL}/register-referral`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            referrerId: referrerId,
+                            userId: settings.userId || tg.initDataUnsafe.user.id
+                        })
+                    }).catch(e => console.error('Ошибка при отправке данных реферала:', e));
+                }
+                
+                // Показываем приветственное сообщение для новых пользователей
+                setTimeout(() => {
+                    showPopup('Добро пожаловать в игру Minions! Вы пришли по приглашению друга.');
+                }, 2000);
+                
+                // Даем бонус новому игроку
+                if (!gameState.receivedReferralBonus) {
+                    gameState.bananas += 25;
+                    gameState.totalBananas += 25;
+                    gameState.stars += 2;
+                    gameState.totalStars += 2;
+                    
+                    // Отмечаем, что бонус получен
+                    gameState.receivedReferralBonus = true;
+                    
+                    // Показываем уведомление с небольшой задержкой
+                    setTimeout(() => {
+                        showPopup('Вы получили бонус за приглашение: +25 бананов, +2 звезды!');
+                        playSound('reward');
+                        vibrate([100, 50, 100]);
+                        updateStats();
+                        saveGameState();
+                    }, 3000);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Ошибка при проверке реферальной ссылки:', e);
+    }
+}
+
+// Инициализация магазина
+function initShop() {
+    try {
+        console.log("Инициализация магазина");
+        
+        // Инициализация кнопок покупки в магазине
+        const shopItems = document.querySelectorAll('.shop-item');
+        shopItems.forEach(item => {
+            const buyButton = item.querySelector('.shop-buy-btn');
+            if (buyButton) {
+                buyButton.addEventListener('click', function() {
+                    const itemType = this.getAttribute('data-type');
+                    const itemCost = parseInt(this.getAttribute('data-cost'));
+                    const itemName = item.querySelector('.shop-item-title').textContent;
+                    
+                    // Проверяем, достаточно ли ресурсов
+                    if (gameState.bananas >= itemCost) {
+                        // Списываем ресурсы
+                        gameState.bananas -= itemCost;
+                        
+                        // Применяем эффект покупки
+                        applyShopItemEffect(itemType);
+                        
+                        // Обновляем статистику
+                        updateStats();
+                        saveGameState();
+                        
+                        // Показываем уведомление
+                        showPopup(`Вы купили: ${itemName}`);
+                        
+                        // Звуковой эффект и вибрация
+                        playSound('reward');
+                        vibrate([100, 50, 100]);
+                    } else {
+                        // Недостаточно ресурсов
+                        showPopup('Недостаточно бананов!');
+                        playSound('minionShocked');
+                    }
+                });
+            }
+        });
+        
+        // Инициализация кнопок улучшений фермы
+        const upgradeButtons = document.querySelectorAll('.upgrade-btn');
+        upgradeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const upgradeType = this.getAttribute('data-type');
+                buyFarmUpgrade(upgradeType);
+            });
+        });
+        
+        // Обновляем отображение цен в магазине
+        updateShopPrices();
+        
+        console.log("Магазин инициализирован");
+    } catch (e) {
+        console.error('Ошибка при инициализации магазина:', e);
+    }
+}
+
+// Применение эффекта купленного предмета
+function applyShopItemEffect(itemType) {
+    try {
+        switch(itemType) {
+            case 'double_xp':
+                // Активируем двойной опыт на 1 час
+                if (!gameState.boosts) gameState.boosts = {};
+                gameState.boosts.doubleXPUntil = Date.now() + (60 * 60 * 1000);
+                break;
+                
+            case 'auto_clicker':
+                // Активируем авто-кликер на 1 час
+                if (!gameState.boosts) gameState.boosts = {};
+                gameState.boosts.autoClickerUntil = Date.now() + (60 * 60 * 1000);
+                startAutoClicker();
+                break;
+                
+            case 'banana_boost':
+                // Увеличиваем производство бананов на 2 часа
+                if (!gameState.boosts) gameState.boosts = {};
+                gameState.boosts.bananaBoostUntil = Date.now() + (2 * 60 * 60 * 1000);
+                break;
+                
+            case 'star_boost':
+                // Увеличиваем шанс получения звезд на 2 часа
+                if (!gameState.boosts) gameState.boosts = {};
+                gameState.boosts.starBoostUntil = Date.now() + (2 * 60 * 60 * 1000);
+                break;
+                
+            default:
+                console.warn(`Неизвестный тип предмета: ${itemType}`);
+        }
+    } catch (e) {
+        console.error('Ошибка при применении эффекта предмета:', e);
+    }
+}
+
+// Обновление цен в магазине
+function updateShopPrices() {
+    try {
+        // Обновляем цены на улучшения фермы
+        const upgradeItems = document.querySelectorAll('.upgrade-item');
+        upgradeItems.forEach(item => {
+            const type = item.getAttribute('data-type');
+            const costElement = item.querySelector('.upgrade-cost');
+            const button = item.querySelector('.upgrade-btn');
+            
+            if (costElement && button) {
+                // Получаем текущий уровень улучшения
+                const upgradeLevel = gameState.farm?.upgrades?.[type] || 0;
+                
+                // Рассчитываем стоимость следующего уровня
+                let cost = 0;
+                switch(type) {
+                    case 'minion':
+                        cost = getMinionCost(gameState.farm?.minions || 0);
+                        break;
+                    case 'efficiency':
+                        cost = [10, 25, 50, 100, 200][upgradeLevel] || 0;
+                        break;
+                    case 'automation':
+                        cost = [15, 35, 70, 150, 300][upgradeLevel] || 0;
+                        break;
+                    case 'boost':
+                        cost = [20, 40, 80, 160, 320][upgradeLevel] || 0;
+                        break;
+                }
+                
+                // Обновляем отображение цены
+                costElement.textContent = `${cost} 🍌`;
+                button.setAttribute('data-cost', cost);
+                
+                // Отключаем кнопку, если достигнут максимальный уровень
+                if (upgradeLevel >= 5) {
+                    button.disabled = true;
+                    button.textContent = 'Максимум';
+                } else {
+                    button.disabled = gameState.bananas < cost;
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Ошибка при обновлении цен в магазине:', e);
+    }
 }
