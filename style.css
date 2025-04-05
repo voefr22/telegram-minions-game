@@ -773,6 +773,28 @@ body {
     padding: 8px 10px;
     border-radius: 20px;
     font-size: 14px;
+    position: relative;
+}
+
+.menu-item:after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 3px;
+    background-color: #FF8C00;
+    transition: width 0.3s ease;
+}
+
+.menu-item.active:after {
+    width: 70%;
+}
+
+.menu-item.active {
+    color: #FF8C00;
+    background-color: rgba(255, 208, 0, 0.3);
 }
 
 .menu-item:hover {
@@ -1046,7 +1068,8 @@ body {
 .main-action-buttons {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 30px;
 }
 
@@ -1067,4 +1090,117 @@ body {
   background-color: #FF7600;
   transform: translateY(-3px);
   box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+}
+
+/* 1. Исправления для разделов и переключения между ними */
+.section,
+[id$="-section"] {
+  display: none;
+  width: 100%;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.active-section,
+.section.active-section {
+  display: block !important;
+}
+
+/* Обеспечиваем плавное появление секций */
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 4. Стили для банановой фермы */
+.farm-container {
+  background-color: #FFD200;
+  border-radius: 15px;
+  padding: 20px;
+  margin: 15px 0;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.farm-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 15px;
+  background-color: rgba(255, 255, 255, 0.3);
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.farm-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.farm-image {
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 15px 0;
+}
+
+.farm-image img {
+  max-height: 100%;
+  max-width: 100%;
+}
+
+.farm-actions {
+  display: flex;
+  justify-content: space-around;
+  margin: 15px 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.farm-info {
+  background-color: rgba(255, 255, 255, 0.3);
+  padding: 10px;
+  border-radius: 10px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+/* 5. Исправления для мобильных устройств */
+@media (max-width: 360px) {
+  .main-action-buttons {
+    flex-direction: column;
+  }
+  
+  .main-action-buttons .action-button {
+    width: 100%;
+    margin: 5px 0;
+  }
+  
+  #main-minion-container {
+    width: 180px;
+    height: 240px;
+  }
+  
+  .farm-actions {
+    flex-direction: column;
+  }
+  
+  .farm-actions .action-button {
+    width: 100%;
+    margin: 5px 0;
+  }
+}
+
+/* 6. Темная тема - дополнительные стили */
+.dark-theme #main-screen {
+  background-color: #222;
+}
+
+.dark-theme .top-stats,
+.dark-theme .farm-container {
+  background-color: #333;
+}
+
+.dark-theme .farm-stats,
+.dark-theme .farm-info {
+  background-color: rgba(255, 255, 255, 0.1);
 }
