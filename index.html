@@ -18,19 +18,48 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Splash screen -->
-    <div id="splash-screen">
-        <div class="splash-content">
-            <img src="images/logo.png" alt="" class="splash-logo" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
-            <div class="loading-container">
-                <div class="loading-bar">
-                    <div class="loading-progress"></div>
+    <!-- Полное решение со встроенными стилями -->
+    <div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #FFE500, #FFB700); display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.5s ease;">
+        <div style="text-align: center; max-width: 80%;">
+            <img src="images/logo.png" alt="" style="width: 200px; height: auto; margin-bottom: 30px;" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
+            <div style="margin-top: 30px; width: 100%; max-width: 300px; margin-left: auto; margin-right: auto;">
+                <div style="width: 100%; height: 15px; background-color: rgba(255, 255, 255, 0.3); border-radius: 10px; overflow: hidden; margin-bottom: 10px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
+                    <div id="loading-progress-bar" style="height: 100%; background: linear-gradient(45deg, #FF8C00, #FFA500); width: 0%; border-radius: 10px; transition: width 0.3s ease;"></div>
                 </div>
-                <div class="loading-text">Загрузка... <span id="loading-progress">0%</span></div>
+                <div style="margin-top: 10px; font-size: 16px; color: #FF8C00; font-weight: bold;">
+                    Загрузка... <span id="loading-progress">0%</span>
+                </div>
             </div>
-            <div class="splash-minion"></div>
         </div>
     </div>
+
+    <script>
+        // Скрипт для анимации загрузки
+        document.addEventListener('DOMContentLoaded', function() {
+            const progressBar = document.getElementById('loading-progress-bar');
+            const progressText = document.getElementById('loading-progress');
+            const splashScreen = document.getElementById('splash-screen');
+            
+            if (progressBar && progressText && splashScreen) {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 5;
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = progress + '%';
+                    
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            splashScreen.style.opacity = '0';
+                            setTimeout(() => {
+                                splashScreen.style.display = 'none';
+                            }, 500);
+                        }, 500);
+                    }
+                }, 100);
+            }
+        });
+    </script>
 
     <!-- 1. Обновленная структура нижнего меню с разделом Главная -->
     <div class="bottom-menu">
