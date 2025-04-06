@@ -28,6 +28,7 @@
                 </div>
                 <div class="loading-text">Загрузка... <span id="loading-progress">0%</span></div>
             </div>
+            <div class="splash-minion"></div>
         </div>
     </div>
 
@@ -41,8 +42,8 @@
     </div>
 
     <!-- 2. Добавляем раздел для банановой фермы (новая функция) -->
-    <div id="farm-section" class="hidden-section">
-        <h2 class="section-heading">Банановая Ферма</h2>
+    <div id="farm-section" class="section hidden-section">
+        <h2 class="section-heading">Банановая Ферма <span class="tip-button" data-tip="farm">❓</span></h2>
         
         <div class="farm-container">
             <div class="farm-stats">
@@ -53,6 +54,10 @@
                 <div class="farm-stat">
                     <span>Бананы готовы:</span>
                     <span id="farm-bananas-ready">0</span>
+                </div>
+                <div class="farm-stat">
+                    <span>Производительность:</span>
+                    <span id="farm-efficiency">1.0</span>x
                 </div>
             </div>
             
@@ -65,9 +70,24 @@
                 <button id="harvest-bananas-btn" class="action-button">Собрать урожай</button>
             </div>
             
-            <div class="farm-info">
-                <p>Каждое растение даёт 0.5 банана в час</p>
-                <p>Собирайте урожай регулярно!</p>
+            <div class="farm-upgrades">
+                <h3>Улучшения фермы</h3>
+                <div class="upgrade-item" data-type="capacity">
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">Увеличение вместимости</div>
+                        <div class="upgrade-description">+2 к максимальному количеству растений</div>
+                    </div>
+                    <div class="upgrade-cost">50 🍌</div>
+                    <button class="upgrade-btn" data-type="capacity">Улучшить</button>
+                </div>
+                <div class="upgrade-item" data-type="efficiency">
+                    <div class="upgrade-info">
+                        <div class="upgrade-title">Повышение эффективности</div>
+                        <div class="upgrade-description">+0.2 к производительности</div>
+                    </div>
+                    <div class="upgrade-cost">100 🍌</div>
+                    <button class="upgrade-btn" data-type="efficiency">Улучшить</button>
+                </div>
             </div>
         </div>
     </div>
@@ -125,34 +145,22 @@
     <div id="boxes-section" class="section hidden-section">
         <h2 class="section-heading">Боксы</h2>
         <div class="boxes-container">
-            <!-- 4. Обновляем раздел боксов (удаляем звезды) -->
-            <div class="box" data-type="simple">
-                <img class="box-img" src="images/box_simple.png" alt="Простой бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
+            <div class="box" data-type="common">
+                <img class="box-img" src="images/box_common.png" alt="Обычный бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
                 <div class="box-info">
-                    <div class="box-name">Простой бокс</div>
+                    <div class="box-name">Обычный бокс</div>
                     <div class="box-cost">10 🍌</div>
                 </div>
-                <button class="open-box-btn" data-type="simple">Открыть</button>
+                <button class="open-box-btn" data-type="common">Открыть</button>
             </div>
-            
-            <div class="box" data-type="standard">
-                <img class="box-img" src="images/box_standard.png" alt="Стандартный бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
+            <div class="box" data-type="rare">
+                <img class="box-img" src="images/box_rare.png" alt="Редкий бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
                 <div class="box-info">
-                    <div class="box-name">Стандартный бокс</div>
-                    <div class="box-cost">25 🍌</div>
-                </div>
-                <button class="open-box-btn" data-type="standard">Открыть</button>
-            </div>
-            
-            <div class="box" data-type="premium">
-                <img class="box-img" src="images/box_premium.png" alt="Премиум бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
-                <div class="box-info">
-                    <div class="box-name">Премиум бокс</div>
+                    <div class="box-name">Редкий бокс</div>
                     <div class="box-cost">50 🍌</div>
                 </div>
-                <button class="open-box-btn" data-type="premium">Открыть</button>
+                <button class="open-box-btn" data-type="rare">Открыть</button>
             </div>
-            
             <div class="box" data-type="mega">
                 <img class="box-img" src="images/box_mega.png" alt="Мега бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
                 <div class="box-info">
