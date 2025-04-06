@@ -16,6 +16,7 @@
     <title>Minions Game</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="leaderboard-styles.css">
 </head>
 <body>
     <!-- Полное решение со встроенными стилями -->
@@ -290,10 +291,34 @@
     <!-- Friends section -->
     <div id="friends-section" class="section hidden-section">
         <h2 class="section-heading">Друзья</h2>
-        <div class="friends-container">
+        
+        <!-- Табы для переключения между друзьями и рейтингом -->
+        <div class="friends-tabs">
+            <div class="friends-tab active" data-tab="friends">Друзья</div>
+            <div class="friends-tab" data-tab="leaderboard">Лидеры</div>
+        </div>
+        
+        <!-- Контент для таба друзей -->
+        <div class="friends-content active" id="friends-tab-content">
             <button id="invite-button" class="action-button">Пригласить друга</button>
             <div class="friends-list">
-                <!-- Friends will be added here dynamically -->
+                <!-- Список друзей будет добавлен динамически -->
+            </div>
+        </div>
+        
+        <!-- Контент для таба рейтинга -->
+        <div class="friends-content" id="leaderboard-tab-content">
+            <div class="leaderboard-filter">
+                <button class="leaderboard-filter-btn active" data-filter="global">Глобальный</button>
+                <button class="leaderboard-filter-btn" data-filter="friends">Друзья</button>
+            </div>
+            <div class="leaderboard-list">
+                <!-- Список лидеров будет добавлен динамически -->
+                <div class="leaderboard-loading">Загрузка рейтинга...</div>
+            </div>
+            <div class="leaderboard-info">
+                <p>Обновляется каждый час</p>
+                <button id="refresh-leaderboard" class="action-button">Обновить</button>
             </div>
         </div>
     </div>
