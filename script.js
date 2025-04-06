@@ -3438,3 +3438,197 @@ document.addEventListener('DOMContentLoaded', function() {
   
   console.log("=== ИСПРАВЛЕНИЯ ЗАВЕРШЕНЫ ===");
 });
+
+// Скрипт для исправления оставшихся проблем интерфейса
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("=== Исправление интерактивных элементов ===");
+  
+  // Исправление кнопок открытия боксов
+  document.querySelectorAll('.open-box-btn').forEach(button => {
+    console.log(`Исправление кнопки открытия бокса: ${button.getAttribute('data-type')}`);
+    
+    // Удаляем старые обработчики
+    const newButton = button.cloneNode(true);
+    if (button.parentNode) {
+      button.parentNode.replaceChild(newButton, button);
+    }
+    
+    // Добавляем новый обработчик
+    newButton.addEventListener('click', function() {
+      const boxType = this.getAttribute('data-type');
+      console.log(`Клик по кнопке открытия бокса типа: ${boxType}`);
+      
+      if (typeof openBox === 'function') {
+        openBox(boxType);
+      } else {
+        console.error('Функция openBox не найдена');
+        alert(`Попытка открыть бокс типа: ${boxType}`);
+      }
+    });
+  });
+  
+  // Исправление кнопок в секции заданий
+  document.querySelectorAll('.task').forEach(taskElement => {
+    console.log("Исправление задания:", taskElement);
+    
+    // Добавляем обработчик клика на задание
+    taskElement.addEventListener('click', function() {
+      const taskId = this.getAttribute('data-task-id');
+      console.log(`Клик по заданию с ID: ${taskId}`);
+      
+      if (typeof completeTask === 'function' && taskId) {
+        completeTask(parseInt(taskId));
+      }
+    });
+  });
+  
+  // Исправление отображения профиля
+  const profileSection = document.getElementById('profile-section');
+  if (profileSection) {
+    console.log("Исправление секции профиля");
+    
+    // Проверяем наличие имени пользователя
+    const userNameElement = document.getElementById('user-name');
+    if (userNameElement && userNameElement.textContent === 'Игрок') {
+      // Попытка получить имя из Telegram WebApp
+      if (window.Telegram && window.Telegram.WebApp && 
+          window.Telegram.WebApp.initDataUnsafe && 
+          window.Telegram.WebApp.initDataUnsafe.user) {
+        
+        const user = window.Telegram.WebApp.initDataUnsafe.user;
+        const userName = user.first_name || 'Миньон';
+        userNameElement.textContent = userName;
+      }
+      // Если имя не удалось получить из Telegram, пробуем из TagManager
+      else if (window.TagManager && window.TagManager.getUserData) {
+        const userData = window.TagManager.getUserData();
+        if (userData && userData.first_name) {
+          userNameElement.textContent = userData.first_name;
+        }
+      }
+    }
+    
+    // Исправление аватара профиля
+    const profileAvatar = profileSection.querySelector('.profile-avatar');
+    if (profileAvatar) {
+      profileAvatar.style.backgroundImage = "url('images/avatar.png')";
+      profileAvatar.style.backgroundSize = "cover";
+    }
+  }
+  
+  // Общее исправление для всех кнопок
+  document.querySelectorAll('button, .action-button').forEach(button => {
+    if (!button.hasAttribute('data-fixed')) {
+      // Помечаем кнопку как исправленную
+      button.setAttribute('data-fixed', 'true');
+      
+      // Делаем кнопку кликабельной
+      button.style.cursor = 'pointer';
+      button.style.pointerEvents = 'auto';
+      
+      // Клонируем для удаления старых обработчиков
+      const newButton = button.cloneNode(true);
+      if (button.parentNode) {
+        button.parentNode.replaceChild(newButton, button);
+      }
+      
+      // Добавляем базовый обработчик
+      newButton.addEventListener('click', function(event) {
+        console.log(`Клик по кнопке: ${this.textContent.trim() || this.id}`);
+        
+        // Воспроизводим звуки, если функция доступна
+        if (typeof playSound === 'function') {
+          playSound('click');
+        }
+        
+        // Вибрация, если функция доступна
+        if (typeof vibrate === 'function') {
+          vibrate(30);
+        }
+        
+        // Запускаем соответствующую функцию по ID кнопки
+        if (this.id === 'farm-collect-btn' && typeof collectFarmBananas === 'function') {
+          collectFarmBananas();
+        } else if (this.id === 'invite-button' && typeof inviteFriend === 'function') {
+          inviteFriend();
+        } else if (this.id === 'wheel-button' && typeof spinWheel === 'function') {
+          spinWheel();
+        } else if (this.id === 'daily-reward-btn' && typeof claimDailyReward === 'function') {
+          claimDailyReward();
+        }
+      });
+    }
+  });
+  
+  // Загрузка данных для профиля
+  function updateProfileStats() {
+    // Обновляем статистику в профиле
+    const statsToUpdate = {
+      'profile-level': gameState.level || 1,
+      'total-bananas': gameState.totalBananas || 0,
+      'completed-tasks': gameState.completedTasks || 0,
+      'opened-boxes': gameState.openedBoxes || 0,
+      'invited-friends': gameState.invitedFriends || 0,
+      'active-days': gameState.activeDays || 1
+    };
+    
+    // Применяем обновления
+    Object.keys(statsToUpdate).forEach(elementId => {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.textContent = statsToUpdate[elementId];
+      }
+    });
+  }
+  
+  // Запускаем обновление профиля
+  updateProfileStats();
+  
+  // Исправляем меню и делаем его видимым
+  const bottomMenu = document.querySelector('.bottom-menu');
+  if (bottomMenu) {
+    bottomMenu.style.display = 'flex';
+    bottomMenu.style.visibility = 'visible';
+    bottomMenu.style.opacity = '1';
+    bottomMenu.style.backgroundColor = '#FFB700';
+  }
+  
+  // Создаем дополнительные обработчики событий для секций
+  document.querySelectorAll('.menu-item').forEach(menuItem => {
+    menuItem.addEventListener('click', function() {
+      const sectionId = this.getAttribute('data-section');
+      if (!sectionId) return;
+      
+      console.log(`Клик по пункту меню: ${sectionId}`);
+      
+      // Скрываем все секции
+      document.querySelectorAll('.section, [id$="-section"]').forEach(section => {
+        section.style.display = 'none';
+      });
+      
+      // Отображаем целевую секцию
+      let targetSectionId = sectionId;
+      if (sectionId !== 'main-screen' && !sectionId.endsWith('-section')) {
+        targetSectionId = sectionId + '-section';
+      }
+      
+      const targetSection = document.getElementById(targetSectionId);
+      if (targetSection) {
+        targetSection.style.display = 'block';
+        
+        // Дополнительная логика при переключении на секцию профиля
+        if (targetSectionId === 'profile-section') {
+          updateProfileStats();
+        }
+      }
+      
+      // Обновляем активный класс в меню
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      this.classList.add('active');
+    });
+  });
+  
+  console.log("=== Исправления интерактивных элементов завершены ===");
+});
