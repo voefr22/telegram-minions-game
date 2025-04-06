@@ -3680,3 +3680,655 @@ document.addEventListener('DOMContentLoaded', function() {
   
   console.log("Цены боксов обновлены");
 });
+
+// Дополнение к script.js - Функционал рейтинга лидеров для Minions Game
+
+// Структура данных для рейтинга игроков
+let leaderboardData = {
+    global: [], // Глобальный рейтинг по всем игрокам
+    friends: [], // Рейтинг среди друзей пользователя
+    lastUpdate: null // Время последнего обновления
+};
+
+// Инициализация функций для интеграции рейтинга в раздел друзей
+function initLeaderboard() {
+    console.log('Инициализация рейтинга лидеров');
+    
+    // Проверяем, существует ли раздел друзей и модифицируем его
+    const friendsSection = document.getElementById('friends-section');
+    if (!friendsSection) {
+        console.error('Раздел друзей не найден');
+        return;
+    }
+    
+    // Добавляем переключатель табов (Друзья/Лидеры)
+    const tabsHtml = `
+        <div class="friends-tabs">
+            <div class="friends-tab active" data-tab="friends">Друзья</div>
+            <div class="friends-tab" data-tab="leaderboard">Лидеры</div>
+        </div>
+        <div class="friends-content active" id="friends-tab-content">
+            <!-- Существующий контент друзей -->
+            <button id="invite-button" class="action-button">Пригласить друга</button>
+            <div class="friends-list">
+                <!-- Список друзей -->
+            </div>
+        </div>
+        <div class="friends-content" id="leaderboard-tab-content">
+            <div class="leaderboard-filter">
+                <button class="leaderboard-filter-btn active" data-filter="global">Глобальный</button>
+                <button class="leaderboard-filter-btn" data-filter="friends">Друзья</button>
+            </div>
+            <div class="leaderboard-list">
+                <!-- Список лидеров будет добавлен динамически -->
+                <div class="leaderboard-loading">Загрузка рейтинга...</div>
+            </div>
+            <div class="leaderboard-info">
+                <p>Обновляется каждый час</p>
+                <button id="refresh-leaderboard" class="action-button">Обновить</button>
+            </div>
+        </div>
+    `;
+    
+    // Очищаем существующее содержимое
+    const existingContent = friendsSection.innerHTML;
+    const sectionHeading = existingContent.match(/<h2 class="section-heading">.*?<\/h2>/);
+    
+    // Сохраняем заголовок секции и заменяем содержимое
+    friendsSection.innerHTML = (sectionHeading ? sectionHeading[0] : '<h2 class="section-heading">Друзья</h2>') + tabsHtml;
+    
+    // Добавляем обработчики табов
+    initLeaderboardTabs();
+    
+    // Добавляем CSS для нового функционала
+    addLeaderboardStyles();
+    
+    // Загружаем данные рейтинга
+    fetchLeaderboardData();
+}
+
+// Инициализация табов внутри раздела друзей
+function initLeaderboardTabs() {
+    const tabs = document.querySelectorAll('.friends-tab');
+    const contents = document.querySelectorAll('.friends-content');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Удаляем активный класс у всех табов
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            
+            // Добавляем активный класс текущему табу
+            this.classList.add('active');
+            
+            // Отображаем соответствующий контент
+            const tabName = this.getAttribute('data-tab');
+            document.getElementById(tabName + '-tab-content').classList.add('active');
+            
+            // Если переключились на таб лидеров и данные устарели, обновляем их
+            if (tabName === 'leaderboard') {
+                if (!leaderboardData.lastUpdate || 
+                    Date.now() - leaderboardData.lastUpdate > 15 * 60 * 1000) { // Обновляем, если прошло больше 15 минут
+                    fetchLeaderboardData();
+                }
+            }
+            
+            // Звук клика
+            playSound('click');
+            vibrate(30);
+        });
+    });
+    
+    // Инициализация фильтров в рейтинге
+    document.querySelectorAll('.leaderboard-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Удаляем активный класс у всех кнопок фильтра
+            document.querySelectorAll('.leaderboard-filter-btn').forEach(b => b.classList.remove('active'));
+            
+            // Добавляем активный класс текущей кнопке
+            this.classList.add('active');
+            
+            // Применяем фильтр
+            const filter = this.getAttribute('data-filter');
+            renderLeaderboard(filter);
+            
+            // Звук клика
+            playSound('click');
+            vibrate(30);
+        });
+    });
+    
+    // Обработчик нажатия на кнопку обновления
+    const refreshBtn = document.getElementById('refresh-leaderboard');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            fetchLeaderboardData(true); // true - принудительное обновление
+            playSound('click');
+            vibrate([30, 50, 30]);
+        });
+    }
+}
+
+// Добавление стилей для рейтинга
+function addLeaderboardStyles() {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+        .friends-tabs {
+            display: flex;
+            border-bottom: 2px solid #FFD000;
+            margin-bottom: 15px;
+        }
+        
+        .friends-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            background-color: #FFDC4A;
+            transition: all 0.3s;
+            border-radius: 8px 8px 0 0;
+            margin-right: 2px;
+            font-weight: bold;
+        }
+        
+        .friends-tab.active {
+            background-color: #FFD000;
+            box-shadow: 0 -3px 5px rgba(0,0,0,0.1);
+        }
+        
+        .friends-content {
+            display: none;
+        }
+        
+        .friends-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .leaderboard-filter {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        
+        .leaderboard-filter-btn {
+            padding: 8px 15px;
+            background-color: #FFDC4A;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .leaderboard-filter-btn.active {
+            background-color: #FF8C00;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .leaderboard-list {
+            background-color: #FFDC4A;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #FFD000;
+            position: relative;
+        }
+        
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+        
+        .leaderboard-rank {
+            font-weight: bold;
+            font-size: 18px;
+            width: 30px;
+            text-align: center;
+            margin-right: 10px;
+        }
+        
+        .rank-1 {
+            color: #FFD700;
+        }
+        
+        .rank-2 {
+            color: #C0C0C0;
+        }
+        
+        .rank-3 {
+            color: #CD7F32;
+        }
+        
+        .leaderboard-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 15px;
+            background-color: #FF8C00;
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .leaderboard-user-info {
+            flex: 1;
+        }
+        
+        .leaderboard-username {
+            font-weight: bold;
+        }
+        
+        .leaderboard-level {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .leaderboard-score {
+            margin-left: auto;
+            font-weight: bold;
+            text-align: right;
+        }
+        
+        .leaderboard-score-value {
+            font-size: 18px;
+            color: #FF8C00;
+        }
+        
+        .leaderboard-score-label {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .leaderboard-loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .leaderboard-info {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .leaderboard-me {
+            background-color: rgba(255, 140, 0, 0.2);
+        }
+        
+        .leaderboard-me::after {
+            content: "Вы";
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background-color: #FF8C00;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        
+        /* Стили для темной темы */
+        .dark-theme .friends-tab {
+            background-color: #444;
+        }
+        
+        .dark-theme .friends-tab.active {
+            background-color: #555;
+        }
+        
+        .dark-theme .leaderboard-filter-btn {
+            background-color: #444;
+            color: #fff;
+        }
+        
+        .dark-theme .leaderboard-filter-btn.active {
+            background-color: #FF8C00;
+        }
+        
+        .dark-theme .leaderboard-list {
+            background-color: #444;
+        }
+        
+        .dark-theme .leaderboard-item {
+            border-color: #555;
+        }
+        
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+    `;
+    
+    document.head.appendChild(styleElement);
+}
+
+// Получение данных о рейтинге с сервера или из Telegram WebApp
+async function fetchLeaderboardData(forceUpdate = false) {
+    // Отображаем индикатор загрузки
+    const leaderboardList = document.querySelector('.leaderboard-list');
+    if (leaderboardList) {
+        leaderboardList.innerHTML = '<div class="leaderboard-loading">Загрузка рейтинга...</div>';
+    }
+    
+    try {
+        // Проверяем, не обновляли ли мы данные недавно
+        if (!forceUpdate && leaderboardData.lastUpdate && 
+            Date.now() - leaderboardData.lastUpdate < 5 * 60 * 1000) { // 5 минут
+            console.log('Используем кешированные данные рейтинга');
+            renderLeaderboard(document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') || 'global');
+            return;
+        }
+        
+        // Получаем данные рейтинга через Telegram WebApp (если доступно)
+        if (window.Telegram && window.Telegram.WebApp) {
+            console.log('Запрашиваем данные рейтинга через Telegram WebApp');
+            
+            // Используем window.TagManager для отправки запроса боту
+            if (window.TagManager && window.TagManager.sendDataToBot) {
+                window.TagManager.sendDataToBot({
+                    action: "get_leaderboard"
+                });
+                
+                // Здесь мы должны были бы дождаться ответа от бота
+                // Но поскольку нет прямого механизма для этого, мы используем тестовые данные
+                // В реальной имплементации бот должен отправить данные через Main Button
+                // или через другой механизм
+                
+                // Имитация получения данных, в реальности данные придут от бота
+                setTimeout(() => {
+                    handleLeaderboardData(generateTestLeaderboardData());
+                }, 1500);
+            } else {
+                // Если нет доступа к TagManager, используем запрос к API
+                fetchLeaderboardFromAPI();
+            }
+        } else {
+            // Если нет доступа к Telegram WebApp, используем запрос к API
+            fetchLeaderboardFromAPI();
+        }
+    } catch (error) {
+        console.error('Ошибка при получении данных рейтинга:', error);
+        
+        if (leaderboardList) {
+            leaderboardList.innerHTML = '<div class="leaderboard-loading">Не удалось загрузить рейтинг. Попробуйте позже.</div>';
+        }
+        
+        // Если произошла ошибка, используем тестовые данные
+        handleLeaderboardData(generateTestLeaderboardData());
+    }
+}
+
+// Получение данных рейтинга с API
+async function fetchLeaderboardFromAPI() {
+    try {
+        // В реальной имплементации здесь был бы запрос к API
+        // fetch('https://api.minions-game.com/leaderboard')
+        
+        // Для демонстрации используем тестовые данные
+        setTimeout(() => {
+            handleLeaderboardData(generateTestLeaderboardData());
+        }, 1500);
+    } catch (error) {
+        console.error('Ошибка при получении данных рейтинга с API:', error);
+        handleLeaderboardData(generateTestLeaderboardData());
+    }
+}
+
+// Обработка полученных данных рейтинга
+function handleLeaderboardData(data) {
+    leaderboardData = {
+        ...data,
+        lastUpdate: Date.now()
+    };
+    
+    // Рендерим рейтинг
+    renderLeaderboard(document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') || 'global');
+}
+
+// Отображение рейтинга в интерфейсе
+function renderLeaderboard(filter = 'global') {
+    const leaderboardList = document.querySelector('.leaderboard-list');
+    if (!leaderboardList) return;
+    
+    // Выбираем данные в зависимости от фильтра
+    const data = leaderboardData[filter] || [];
+    
+    if (data.length === 0) {
+        leaderboardList.innerHTML = `<div class="leaderboard-loading">Рейтинг ${filter === 'global' ? 'глобальный' : 'друзей'} пуст</div>`;
+        return;
+    }
+    
+    // Формируем HTML для списка лидеров
+    let html = '';
+    
+    data.forEach((item, index) => {
+        const rankClass = index < 3 ? `rank-${index + 1}` : '';
+        const isMe = item.isMe; // Текущий пользователь
+        
+        html += `
+            <div class="leaderboard-item ${isMe ? 'leaderboard-me' : ''}">
+                <div class="leaderboard-rank ${rankClass}">${index + 1}</div>
+                <div class="leaderboard-avatar" style="background-image: url('${item.avatar || 'images/avatar.png'}')"></div>
+                <div class="leaderboard-user-info">
+                    <div class="leaderboard-username">${item.username}</div>
+                    <div class="leaderboard-level">Уровень: ${item.level}</div>
+                </div>
+                <div class="leaderboard-score">
+                    <div class="leaderboard-score-value">${item.score.toLocaleString()}</div>
+                    <div class="leaderboard-score-label">бананов</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    leaderboardList.innerHTML = html;
+    
+    // Обновляем время последнего обновления
+    const leaderboardInfo = document.querySelector('.leaderboard-info p');
+    if (leaderboardInfo && leaderboardData.lastUpdate) {
+        const date = new Date(leaderboardData.lastUpdate);
+        leaderboardInfo.textContent = `Обновлено: ${date.toLocaleTimeString()}`;
+    }
+}
+
+// Генерация тестовых данных для рейтинга (будет заменено на реальные данные)
+function generateTestLeaderboardData() {
+    const currentUserName = getCurrentUserName();
+    const currentUserId = getCurrentUserId();
+    
+    // Генерируем глобальный рейтинг
+    const globalLeaderboard = [];
+    
+    for (let i = 0; i < 20; i++) {
+        globalLeaderboard.push({
+            id: 1000 + i,
+            username: i === 0 ? 'MinionsKing' : i === 1 ? 'BananaHunter' : `Player${1000 + i}`,
+            level: Math.floor(Math.random() * 10) + 10,
+            score: Math.floor(Math.random() * 50000) + 10000,
+            avatar: `https://i.pravatar.cc/150?img=${i+10}`,
+            isMe: (1000 + i) === currentUserId
+        });
+    }
+    
+    // Сортируем по убыванию очков
+    globalLeaderboard.sort((a, b) => b.score - a.score);
+    
+    // Если пользователя нет в топе, добавляем его
+    if (!globalLeaderboard.some(item => item.isMe)) {
+        // Добавляем текущего пользователя в конец списка
+        globalLeaderboard.push({
+            id: currentUserId,
+            username: currentUserName,
+            level: gameState.level || 1,
+            score: gameState.totalBananas || 1000,
+            avatar: 'images/avatar.png',
+            isMe: true
+        });
+    }
+    
+    // Генерируем рейтинг друзей (подмножество глобального рейтинга)
+    const friendsLeaderboard = [
+        {
+            id: currentUserId,
+            username: currentUserName,
+            level: gameState.level || 1,
+            score: gameState.totalBananas || 1000,
+            avatar: 'images/avatar.png',
+            isMe: true
+        }
+    ];
+    
+    // Добавляем несколько случайных игроков из глобального рейтинга как "друзей"
+    for (let i = 0; i < 5; i++) {
+        const randomIndex = Math.floor(Math.random() * 10);
+        const friend = { ...globalLeaderboard[randomIndex], isMe: false };
+        friendsLeaderboard.push(friend);
+    }
+    
+    // Сортируем друзей по убыванию очков
+    friendsLeaderboard.sort((a, b) => b.score - a.score);
+    
+    return {
+        global: globalLeaderboard,
+        friends: friendsLeaderboard,
+        lastUpdate: Date.now()
+    };
+}
+
+// Получение имени текущего пользователя
+function getCurrentUserName() {
+    // Пробуем получить имя из Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp && 
+        window.Telegram.WebApp.initDataUnsafe && 
+        window.Telegram.WebApp.initDataUnsafe.user) {
+        
+        const user = window.Telegram.WebApp.initDataUnsafe.user;
+        return user.first_name || 'Миньон';
+    }
+    
+    // Пробуем получить имя из TagManager
+    if (window.TagManager && window.TagManager.getUserData) {
+        const userData = window.TagManager.getUserData();
+        if (userData && userData.first_name) {
+            return userData.first_name;
+        }
+    }
+    
+    // Возвращаем имя по умолчанию
+    return 'Миньон';
+}
+
+// Получение ID текущего пользователя
+function getCurrentUserId() {
+    // Пробуем получить ID из Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp && 
+        window.Telegram.WebApp.initDataUnsafe && 
+        window.Telegram.WebApp.initDataUnsafe.user) {
+        
+        const user = window.Telegram.WebApp.initDataUnsafe.user;
+        return user.id || 1001;
+    }
+    
+    // Пробуем получить ID из TagManager
+    if (window.TagManager && window.TagManager.getUserData) {
+        const userData = window.TagManager.getUserData();
+        if (userData && userData.id) {
+            return userData.id;
+        }
+    }
+    
+    // Возвращаем ID по умолчанию
+    return 1001;
+}
+
+// Интеграция рейтинга в основной функционал игры
+function integrateLeaderboard() {
+    // Добавляем инициализацию рейтинга к функции init
+    const originalInit = window.init || function(){};
+    
+    window.init = async function() {
+        try {
+            // Вызываем оригинальную функцию
+            await originalInit();
+            
+            // Добавляем инициализацию рейтинга
+            setTimeout(initLeaderboard, 1000);
+        } catch (e) {
+            console.error('Ошибка при интеграции рейтинга:', e);
+        }
+    };
+    
+    // Добавляем обработку событий от Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.onEvent('mainButtonClicked', function() {
+            // Проверяем, что кнопка используется для обработки данных рейтинга
+            if (window.Telegram.WebApp.MainButton.text.includes('РЕЙТИНГ')) {
+                // Получаем данные из WebApp
+                try {
+                    const receivedData = window.Telegram.WebApp.initDataUnsafe.data;
+                    if (receivedData && receivedData.leaderboard) {
+                        handleLeaderboardData(receivedData.leaderboard);
+                    }
+                } catch (e) {
+                    console.error('Ошибка при получении данных рейтинга из Telegram:', e);
+                }
+            }
+        });
+    }
+    
+    // Обновление рейтинга при изменении gameState
+    const originalSaveGameState = window.saveGameState || function(){};
+    window.saveGameState = function() {
+        // Вызываем оригинальную функцию
+        originalSaveGameState();
+        
+        // Обновляем данные для локального рейтинга
+        if (leaderboardData.friends && leaderboardData.friends.length > 0) {
+            // Обновляем данные текущего пользователя в рейтинге
+            const currentUser = leaderboardData.friends.find(item => item.isMe);
+            if (currentUser) {
+                currentUser.level = gameState.level || 1;
+                currentUser.score = gameState.totalBananas || 0;
+                
+                // Пересортируем рейтинг друзей
+                leaderboardData.friends.sort((a, b) => b.score - a.score);
+                
+                // Обновляем интерфейс рейтинга, если он открыт
+                if (document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') === 'friends') {
+                    renderLeaderboard('friends');
+                }
+            }
+        }
+    };
+}
+
+// Запуск интеграции
+document.addEventListener('DOMContentLoaded', function() {
+    integrateLeaderboard();
+    
+    // Добавляем возможность переключения на таб рейтинга по хэшу в URL
+    if (window.location.hash === '#leaderboard') {
+        setTimeout(() => {
+            const leaderboardTab = document.querySelector('.friends-tab[data-tab="leaderboard"]');
+            if (leaderboardTab) leaderboardTab.click();
+        }, 2000);
+    }
+});
+
+// Дополнительная интеграция для TagManager
+if (window.TagManager) {
+    // Расширяем TagManager для обработки событий рейтинга
+    window.TagManager.handleLeaderboardData = function(data) {
+        handleLeaderboardData(data);
+    };
+}
