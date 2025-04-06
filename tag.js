@@ -303,7 +303,7 @@ const TagManager = {
         
         // Запрос данных рейтинга у бота Telegram
         requestLeaderboardData: function() {
-            console.log("Запрос данных рейтинга у бота Telegram");
+            console.log("Запрос данных рейтинга без отображения MainButton");
             
             // Проверяем доступность Telegram WebApp
             if (TagManager.tgApp && TagManager.isReady) {
@@ -313,30 +313,10 @@ const TagManager = {
                     userId: TagManager.userData?.id || null
                 });
                 
-                // Показываем кнопку для обработки ответа
-                if (TagManager.tgApp.MainButton) {
-                    TagManager.tgApp.MainButton.setText("ПОЛУЧИТЬ РЕЙТИНГ");
-                    TagManager.tgApp.MainButton.show();
-                    
-                    // Сохраняем текущий обработчик (если он есть)
-                    this._prevMainButtonHandler = TagManager.tgApp.MainButton.onClick;
-                    
-                    // Устанавливаем новый обработчик
-                    TagManager.tgApp.MainButton.onClick(() => {
-                        // В реальном сценарии, бот должен вернуть данные через initDataUnsafe.data
-                        // Но поскольку здесь нет прямого механизма, используем генерацию тестовых данных
-                        setTimeout(() => {
-                            this.handleLeaderboardData(this.generateTestData());
-                            TagManager.tgApp.MainButton.hide();
-                            
-                            // Восстанавливаем предыдущий обработчик
-                            if (this._prevMainButtonHandler) {
-                                TagManager.tgApp.MainButton.onClick(this._prevMainButtonHandler);
-                                this._prevMainButtonHandler = null;
-                            }
-                        }, 1000);
-                    });
-                }
+                // Вместо показа кнопки используем генерацию тестовых данных
+                setTimeout(() => {
+                    this.handleLeaderboardData(this.generateTestData());
+                }, 1000);
                 
                 return true;
             } else {
@@ -506,3 +486,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Экспортируем глобальный объект для доступа из других скриптов
 window.TagManager = TagManager;
+
+// Исправление для удаления кнопки "ПОЛУЧИТЬ РЕЙТИНГ"
+// Функция для скрытия MainButton
+function hideMainButton() {
+  if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.MainButton) {
+    // Скрываем кнопку, если она отображается
+    if (window.Telegram.WebApp.MainButton.isVisible) {
+      window.Telegram.WebApp.MainButton.hide();
+    }
+    
+    // Удаляем обработчик, который может показывать кнопку
+    window.Telegram.WebApp.MainButton.onClick(function() {});
+    
+    console.log("MainButton скрыта");
+  }
+}
+
+// Запускаем скрытие кнопки при загрузке страницы
+document.addEventListener('DOMContentLoaded', hideMainButton);
+
+// Также скрываем кнопку при каждом обновлении viewPort
+if (window.Telegram && window.Telegram.WebApp) {
+  window.Telegram.WebApp.onEvent('viewportChanged', hideMainButton);
+}
