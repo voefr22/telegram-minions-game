@@ -973,6 +973,9 @@ async function init() {
             console.error('Ошибка при загрузке настроек, используем значения по умолчанию', e);
         }
         
+        // Устанавливаем корректные fallback для изображений
+        setImageFallbacks();
+        
         // Предзагрузка изображений с правильным отслеживанием прогресса
         try {
             preloadResources(() => {
@@ -1443,24 +1446,19 @@ function openBox(type) {
                     gameState.bananas -= 10;
                     canOpen = true;
                     
-                    // Случайные награды с балансом
+                    // Случайные награды с балансом (только бананы и опыт)
                     const reward = Math.random();
-                    if (reward < 0.6) {
-                        // 60% шанс на бананы (5-15)
+                    if (reward < 0.7) {
+                        // 70% шанс на бананы (5-15)
                         const bananas = Math.floor(Math.random() * 11) + 5;
                         gameState.bananas += bananas;
                         gameState.totalBananas += bananas;
                         rewardText = `+${bananas} бананов`;
-                    } else if (reward < 0.9) {
+                    } else {
                         // 30% шанс на опыт (5-10)
                         const exp = Math.floor(Math.random() * 6) + 5;
                         addExperience(exp);
                         rewardText = `+${exp} опыта`;
-                    } else {
-                        // 10% шанс на звезду
-                        gameState.stars += 1;
-                        gameState.totalStars += 1;
-                        rewardText = '+1 звезда';
                     }
                 }
                 break;
@@ -1470,55 +1468,43 @@ function openBox(type) {
                     gameState.bananas -= 25;
                     canOpen = true;
                     
-                    // Улучшенные награды
+                    // Улучшенные награды (только бананы и опыт)
                     const reward = Math.random();
-                    if (reward < 0.5) {
-                        // 50% шанс на бананы (15-30)
+                    if (reward < 0.6) {
+                        // 60% шанс на бананы (15-30)
                         const bananas = Math.floor(Math.random() * 16) + 15;
                         gameState.bananas += bananas;
                         gameState.totalBananas += bananas;
                         rewardText = `+${bananas} бананов`;
-                    } else if (reward < 0.8) {
-                        // 30% шанс на опыт (10-20)
+                    } else {
+                        // 40% шанс на опыт (10-20)
                         const exp = Math.floor(Math.random() * 11) + 10;
                         addExperience(exp);
                         rewardText = `+${exp} опыта`;
-                    } else {
-                        // 20% шанс на звезды (1-3)
-                        const stars = Math.floor(Math.random() * 3) + 1;
-                        gameState.stars += stars;
-                        gameState.totalStars += stars;
-                        rewardText = `+${stars} звезд`;
                     }
                 }
                 break;
                 
             case 'premium':
-                if (gameState.stars >= 5) {
-                    gameState.stars -= 5;
+                if (gameState.bananas >= 50) {
+                    gameState.bananas -= 50;
                     canOpen = true;
                     
-                    // Премиум награды
+                    // Премиум награды (бананы, опыт и буст)
                     const reward = Math.random();
-                    if (reward < 0.4) {
-                        // 40% шанс на бананы (40-80)
+                    if (reward < 0.5) {
+                        // 50% шанс на бананы (40-80)
                         const bananas = Math.floor(Math.random() * 41) + 40;
                         gameState.bananas += bananas;
                         gameState.totalBananas += bananas;
                         rewardText = `+${bananas} бананов`;
-                    } else if (reward < 0.7) {
-                        // 30% шанс на опыт (20-40)
+                    } else if (reward < 0.85) {
+                        // 35% шанс на опыт (20-40)
                         const exp = Math.floor(Math.random() * 21) + 20;
                         addExperience(exp);
                         rewardText = `+${exp} опыта`;
-                    } else if (reward < 0.95) {
-                        // 25% шанс на звезды (3-6)
-                        const stars = Math.floor(Math.random() * 4) + 3;
-                        gameState.stars += stars;
-                        gameState.totalStars += stars;
-                        rewardText = `+${stars} звезд`;
                     } else {
-                        // 5% шанс на временный буст
+                        // 15% шанс на временный буст
                         if (!gameState.boosts) gameState.boosts = {};
                         const now = Date.now();
                         gameState.boosts.doubleXPUntil = now + (60 * 60 * 1000); // 1 час
@@ -1534,36 +1520,47 @@ function openBox(type) {
                 break;
                 
             case 'mega':
-                if (gameState.stars >= 15) {
-                    gameState.stars -= 15;
+                if (gameState.bananas >= 100) {
+                    gameState.bananas -= 100;
                     canOpen = true;
                     
-                    // Мега награды
+                    // Мега награды (улучшенные награды и редкие бусты)
                     const reward = Math.random();
-                    if (reward < 0.35) {
-                        // 35% шанс на бананы (80-150)
+                    if (reward < 0.4) {
+                        // 40% шанс на бананы (80-150)
                         const bananas = Math.floor(Math.random() * 71) + 80;
                         gameState.bananas += bananas;
                         gameState.totalBananas += bananas;
                         rewardText = `+${bananas} бананов`;
-                    } else if (reward < 0.65) {
+                    } else if (reward < 0.7) {
                         // 30% шанс на опыт (40-80)
                         const exp = Math.floor(Math.random() * 41) + 40;
                         addExperience(exp);
                         rewardText = `+${exp} опыта`;
-                    } else if (reward < 0.9) {
-                        // 25% шанс на звезды (5-10)
-                        const stars = Math.floor(Math.random() * 6) + 5;
-                        gameState.stars += stars;
-                        gameState.totalStars += stars;
-                        rewardText = `+${stars} звезд`;
+                    } else if (reward < 0.85) {
+                        // 15% шанс на телеграм подарок
+                        if (tg && tg.showPopup) {
+                            tg.showPopup({
+                                title: "Поздравляем!",
+                                message: "Вы выиграли телеграм подарок! Заберите его у бота.",
+                                buttons: [{ type: "ok" }]
+                            });
+                        }
+                        rewardText = 'Телеграм подарок! 🎁';
+                        
+                        // Отправляем данные боту о выигрыше подарка, если есть интеграция
+                        if (window.TagManager && window.TagManager.sendDataToBot) {
+                            window.TagManager.sendDataToBot({
+                                action: "gift_won",
+                                boxType: "mega"
+                            });
+                        }
                     } else {
-                        // 10% шанс на редкий предмет
-                        // Автоматический сбор бананов в течение 3 часов
+                        // 15% шанс на редкий буст
                         if (!gameState.boosts) gameState.boosts = {};
                         const now = Date.now();
                         
-                        // 5% шанс на двойной опыт, 5% на автокликер
+                        // Равные шансы на двойной опыт или автокликер
                         if (Math.random() < 0.5) {
                             gameState.boosts.doubleXPUntil = now + (3 * 60 * 60 * 1000); // 3 часа
                             rewardText = 'Двойной опыт на 3 часа!';
@@ -1571,6 +1568,46 @@ function openBox(type) {
                             gameState.boosts.autoClickerUntil = now + (3 * 60 * 60 * 1000); // 3 часа
                             startAutoClicker();
                             rewardText = 'Авто-кликер на 3 часа!';
+                        }
+                    }
+                }
+                break;
+                
+            case 'special':
+                if (gameState.bananas >= 75) {
+                    gameState.bananas -= 75;
+                    canOpen = true;
+                    
+                    // Специальная награда (телеграм подарки и особые бусты)
+                    const reward = Math.random();
+                    if (reward < 0.3) {
+                        // 30% шанс на бананы (60-120)
+                        const bananas = Math.floor(Math.random() * 61) + 60;
+                        gameState.bananas += bananas;
+                        gameState.totalBananas += bananas;
+                        rewardText = `+${bananas} бананов`;
+                    } else if (reward < 0.6) {
+                        // 30% шанс на опыт (30-60)
+                        const exp = Math.floor(Math.random() * 31) + 30;
+                        addExperience(exp);
+                        rewardText = `+${exp} опыта`;
+                    } else {
+                        // 40% шанс на телеграм подарок
+                        if (tg && tg.showPopup) {
+                            tg.showPopup({
+                                title: "Специальный подарок!",
+                                message: "Вы выиграли особый телеграм подарок! Заберите его у бота.",
+                                buttons: [{ type: "ok" }]
+                            });
+                        }
+                        rewardText = 'Телеграм подарок! 🎁';
+                        
+                        // Отправляем данные боту о выигрыше подарка, если есть интеграция
+                        if (window.TagManager && window.TagManager.sendDataToBot) {
+                            window.TagManager.sendDataToBot({
+                                action: "gift_won",
+                                boxType: "special"
+                            });
                         }
                     }
                 }
@@ -1597,7 +1634,7 @@ function openBox(type) {
             return true;
         } else {
             // Показываем сообщение о недостатке ресурсов
-            showPopup('Недостаточно ресурсов!');
+            showPopup('Недостаточно бананов!');
             playSound('minionShocked');
             return false;
         }
