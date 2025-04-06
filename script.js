@@ -3131,12 +3131,12 @@ function showSection(sectionId) {
 
 // Функция для обновления активного пункта меню
 function updateActiveMenuItem(sectionId) {
-    // Удаляем класс active у всех пунктов меню
+    // Remove active class from all menu items
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.remove('active');
     });
     
-    // Добавляем класс active для соответствующего пункта меню
+    // Add active class to current section's menu item
     const menuItem = document.querySelector(`.menu-item[data-section="${sectionId}"]`) || 
                     document.querySelector(`.menu-item[data-section="${sectionId.replace('-section', '')}"]`);
     
@@ -3511,3 +3511,232 @@ function handleLoadingScreen() {
 
 // Вызываем эту функцию после загрузки DOM
 document.addEventListener('DOMContentLoaded', handleLoadingScreen);
+
+// Скрипт для исправления проблем с интерфейсом
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("=== ИСПРАВЛЕНИЕ ПРОБЛЕМ ИНТЕРФЕЙСА ===");
+  
+  // Фиксим видимость нижнего меню
+  const bottomMenu = document.querySelector('.bottom-menu');
+  if (bottomMenu) {
+    console.log("Исправляем нижнее меню:", bottomMenu);
+    bottomMenu.style.display = 'flex';
+    bottomMenu.style.visibility = 'visible';
+    bottomMenu.style.opacity = '1';
+    bottomMenu.style.zIndex = '1000';
+    bottomMenu.style.backgroundColor = '#FFB700';
+    bottomMenu.style.position = 'fixed';
+    bottomMenu.style.bottom = '0';
+    bottomMenu.style.left = '0';
+    bottomMenu.style.width = '100%';
+  } else {
+    console.error("Нижнее меню не найдено, создаем новое");
+    
+    // Создаем новое меню, если не найдено
+    const newMenu = document.createElement('div');
+    newMenu.className = 'bottom-menu';
+    newMenu.innerHTML = `
+      <div class="menu-item" data-section="main-screen">Главная</div>
+      <div class="menu-item" data-section="tasks-section">Задания</div>
+      <div class="menu-item" data-section="boxes-section">Боксы</div>
+      <div class="menu-item" data-section="farm-section">Ферма</div>
+      <div class="menu-item" data-section="profile-section">Профиль</div>
+    `;
+    
+    newMenu.style.position = 'fixed';
+    newMenu.style.bottom = '0';
+    newMenu.style.left = '0';
+    newMenu.style.width = '100%';
+    newMenu.style.display = 'flex';
+    newMenu.style.justifyContent = 'space-around';
+    newMenu.style.backgroundColor = '#FFB700';
+    newMenu.style.padding = '10px 0';
+    newMenu.style.boxShadow = '0 -4px 10px rgba(0,0,0,0.1)';
+    newMenu.style.zIndex = '1000';
+    
+    document.body.appendChild(newMenu);
+    bottomMenu = newMenu;
+  }
+  
+  // Фиксим стили пунктов меню, если они есть
+  document.querySelectorAll('.menu-item').forEach(item => {
+    item.style.color = '#333';
+    item.style.textAlign = 'center';
+    item.style.cursor = 'pointer';
+    item.style.transition = 'all 0.3s';
+    item.style.fontWeight = 'bold';
+    item.style.padding = '8px 10px';
+    item.style.borderRadius = '20px';
+    item.style.fontSize = '14px';
+  });
+  
+  // Надежный обработчик для показа секций
+  function fixedShowSection(sectionId) {
+    console.log(`Показываем секцию: ${sectionId}`);
+    
+    // Нормализуем ID секции
+    if (sectionId !== 'main-screen' && !sectionId.endsWith('-section')) {
+      sectionId = sectionId + '-section';
+    }
+    
+    // Скрываем все секции
+    document.querySelectorAll('.section, [id$="-section"]').forEach(section => {
+      console.log(`Скрываем секцию: ${section.id}`);
+      section.style.display = 'none';
+    });
+    
+    // Показываем целевую секцию
+    const targetSection = document.getElementById(sectionId);
+    if (targetSection) {
+      console.log(`Показываем целевую секцию: ${sectionId}`);
+      targetSection.style.display = 'block';
+    } else {
+      console.error(`Секция не найдена: ${sectionId}`);
+      // Если секция не найдена, показываем главный экран
+      const mainScreen = document.getElementById('main-screen');
+      if (mainScreen) {
+        mainScreen.style.display = 'block';
+      }
+    }
+    
+    // Обновляем активные пункты меню
+    document.querySelectorAll('.menu-item').forEach(item => {
+      item.classList.remove('active');
+      const itemSection = item.getAttribute('data-section');
+      if (itemSection === sectionId || itemSection + '-section' === sectionId) {
+        item.classList.add('active');
+      }
+    });
+  }
+  
+  // Перезаписываем функцию showSection нашей исправленной версией
+  window.showSection = fixedShowSection;
+  
+  // Фиксим обработчики нажатий на пункты меню
+  document.querySelectorAll('.menu-item').forEach(item => {
+    console.log(`Добавляем обработчик для пункта меню: ${item.textContent}`);
+    
+    // Удаляем старые обработчики
+    const newItem = item.cloneNode(true);
+    if (item.parentNode) {
+      item.parentNode.replaceChild(newItem, item);
+    }
+    
+    // Добавляем новый надежный обработчик
+    newItem.addEventListener('click', function() {
+      const sectionId = this.getAttribute('data-section');
+      console.log(`Клик по пункту меню: ${this.textContent}, секция: ${sectionId}`);
+      
+      if (sectionId) {
+        fixedShowSection(sectionId);
+        
+        // Звук и вибрация (если функции доступны)
+        if (typeof playSound === 'function') {
+          playSound('click');
+        }
+        
+        if (typeof vibrate === 'function') {
+          vibrate(30);
+        }
+      }
+    });
+  });
+  
+  // Фиксим кнопки действий во всех секциях
+  document.querySelectorAll('button, .action-button, .open-box-btn, .upgrade-btn').forEach(button => {
+    // Проверяем, не добавлен ли уже обработчик
+    if (!button.hasAttribute('data-fixed')) {
+      console.log(`Исправляем кнопку: ${button.textContent || button.innerText}`);
+      
+      button.style.cursor = 'pointer';
+      button.setAttribute('data-fixed', 'true');
+      
+      // Проверяем наличие атрибутов для определения действия
+      const boxType = button.getAttribute('data-type');
+      const sectionId = button.getAttribute('data-section');
+      
+      if (boxType && button.classList.contains('open-box-btn')) {
+        // Кнопка открытия бокса
+        button.addEventListener('click', function() {
+          console.log(`Клик по кнопке открытия бокса типа: ${boxType}`);
+          if (typeof openBox === 'function') {
+            openBox(boxType);
+          }
+        });
+      } else if (boxType && button.classList.contains('upgrade-btn')) {
+        // Кнопка улучшения
+        button.addEventListener('click', function() {
+          console.log(`Клик по кнопке улучшения типа: ${boxType}`);
+          if (typeof buyFarmUpgrade === 'function') {
+            buyFarmUpgrade(boxType);
+          }
+        });
+      } else if (sectionId) {
+        // Кнопка навигации
+        button.addEventListener('click', function() {
+          console.log(`Клик по кнопке навигации к секции: ${sectionId}`);
+          fixedShowSection(sectionId);
+        });
+      } else if (button.id === 'farm-collect-btn') {
+        // Кнопка сбора бананов
+        button.addEventListener('click', function() {
+          console.log('Клик по кнопке сбора бананов');
+          if (typeof collectFarmBananas === 'function') {
+            collectFarmBananas();
+          }
+        });
+      } else if (button.id === 'invite-button') {
+        // Кнопка приглашения друга
+        button.addEventListener('click', function() {
+          console.log('Клик по кнопке приглашения друга');
+          if (typeof inviteFriend === 'function') {
+            inviteFriend();
+          }
+        });
+      } else if (button.id === 'wheel-button') {
+        // Кнопка колеса фортуны
+        button.addEventListener('click', function() {
+          console.log('Клик по кнопке колеса фортуны');
+          if (typeof spinWheel === 'function') {
+            spinWheel();
+          }
+        });
+      } else if (button.id === 'daily-reward-btn') {
+        // Кнопка ежедневной награды
+        button.addEventListener('click', function() {
+          console.log('Клик по кнопке ежедневной награды');
+          if (typeof claimDailyReward === 'function') {
+            claimDailyReward();
+          }
+        });
+      }
+    }
+  });
+  
+  // Проверка на наличие дублирующихся элементов
+  document.querySelectorAll('[id]').forEach(el => {
+    const sameId = document.querySelectorAll(`#${el.id}`);
+    if (sameId.length > 1) {
+      console.warn(`Обнаружен дублирующийся ID: ${el.id}, количество: ${sameId.length}`);
+      
+      // Оставляем только первый элемент
+      for (let i = 1; i < sameId.length; i++) {
+        if (sameId[i].parentNode) {
+          console.log(`Удаляем дублирующийся элемент с ID: ${sameId[i].id}`);
+          sameId[i].parentNode.removeChild(sameId[i]);
+        }
+      }
+    }
+  });
+  
+  // Показываем главный экран после исправлений
+  setTimeout(() => {
+    const mainScreen = document.getElementById('main-screen');
+    if (mainScreen) {
+      console.log('Отображаем главный экран после исправлений');
+      fixedShowSection('main-screen');
+    }
+  }, 500);
+  
+  console.log("=== ИСПРАВЛЕНИЯ ЗАВЕРШЕНЫ ===");
+});
