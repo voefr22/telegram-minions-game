@@ -1,0 +1,349 @@
+/* leaderboard-styles.css - Стили для рейтинга лидеров в Minions Game */
+
+/* Стили для табов в разделе друзей */
+.friends-tabs {
+    display: flex;
+    border-bottom: 2px solid #FFD000;
+    margin-bottom: 15px;
+}
+
+.friends-tab {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    cursor: pointer;
+    background-color: #FFDC4A;
+    transition: all 0.3s;
+    border-radius: 8px 8px 0 0;
+    margin-right: 2px;
+    font-weight: bold;
+}
+
+.friends-tab.active {
+    background-color: #FFD000;
+    box-shadow: 0 -3px 5px rgba(0,0,0,0.1);
+}
+
+.friends-tab:hover {
+    background-color: #FFD700;
+    transform: translateY(-2px);
+}
+
+/* Стили для содержимого табов */
+.friends-content {
+    display: none;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.friends-content.active {
+    display: block;
+}
+
+/* Стили для фильтров в рейтинге */
+.leaderboard-filter {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+    gap: 10px;
+}
+
+.leaderboard-filter-btn {
+    padding: 8px 15px;
+    background-color: #FFDC4A;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: bold;
+}
+
+.leaderboard-filter-btn.active {
+    background-color: #FF8C00;
+    color: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.leaderboard-filter-btn:hover:not(.active) {
+    background-color: #FFD700;
+    transform: translateY(-2px);
+}
+
+/* Стили для списка лидеров */
+.leaderboard-list {
+    background-color: #FFDC4A;
+    border-radius: 10px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.leaderboard-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #FFD000;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.leaderboard-item:last-child {
+    border-bottom: none;
+}
+
+.leaderboard-item:hover {
+    background-color: rgba(255, 215, 0, 0.2);
+}
+
+/* Стили для ранга в рейтинге */
+.leaderboard-rank {
+    font-weight: bold;
+    font-size: 18px;
+    width: 30px;
+    text-align: center;
+    margin-right: 10px;
+}
+
+.rank-1 {
+    color: #FFD700; /* Золото */
+}
+
+.rank-2 {
+    color: #C0C0C0; /* Серебро */
+}
+
+.rank-3 {
+    color: #CD7F32; /* Бронза */
+}
+
+/* Стили для аватаров */
+.leaderboard-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+    background-color: #FF8C00;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: 2px solid #FFD000;
+    overflow: hidden;
+}
+
+/* Стили для информации о пользователе */
+.leaderboard-user-info {
+    flex: 1;
+}
+
+.leaderboard-username {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+
+.leaderboard-level {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Стили для отображения очков */
+.leaderboard-score {
+    margin-left: auto;
+    font-weight: bold;
+    text-align: right;
+}
+
+.leaderboard-score-value {
+    font-size: 18px;
+    color: #FF8C00;
+}
+
+.leaderboard-score-label {
+    font-size: 12px;
+    color: #666;
+}
+
+/* Стили для индикации загрузки */
+.leaderboard-loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Стили для информации о рейтинге */
+.leaderboard-info {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 12px;
+    color: #666;
+}
+
+/* Стили для выделения текущего пользователя */
+.leaderboard-me {
+    background-color: rgba(255, 140, 0, 0.2);
+}
+
+.leaderboard-me::after {
+    content: "Вы";
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background-color: #FF8C00;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+}
+
+/* Стили для кнопки обновления */
+#refresh-leaderboard {
+    background-color: #FF8C00;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: bold;
+    font-size: 14px;
+    margin-top: 10px;
+}
+
+#refresh-leaderboard:hover {
+    background-color: #FF7600;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+#refresh-leaderboard:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Стили для анимации загрузки */
+.refresh-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.refresh-loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #FFF;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: leaderboard-loading 0.8s linear infinite;
+}
+
+@keyframes leaderboard-loading {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Пустое состояние для рейтинга */
+.leaderboard-empty {
+    text-align: center;
+    padding: 30px 15px;
+    color: #666;
+}
+
+.leaderboard-empty-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+    color: #FFD000;
+}
+
+.leaderboard-empty-text {
+    font-style: italic;
+}
+
+/* Стили для мобильной адаптации */
+@media (max-width: 360px) {
+    .leaderboard-rank {
+        width: 20px;
+        font-size: 16px;
+    }
+    
+    .leaderboard-avatar {
+        width: 30px;
+        height: 30px;
+        margin-right: 10px;
+    }
+    
+    .leaderboard-username {
+        max-width: 80px;
+        font-size: 14px;
+    }
+    
+    .leaderboard-score-value {
+        font-size: 16px;
+    }
+    
+    .leaderboard-filter-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+/* Стили для темной темы */
+.dark-theme .friends-tab {
+    background-color: #444;
+    color: #fff;
+}
+
+.dark-theme .friends-tab.active {
+    background-color: #555;
+}
+
+.dark-theme .leaderboard-filter-btn {
+    background-color: #444;
+    color: #fff;
+}
+
+.dark-theme .leaderboard-filter-btn.active {
+    background-color: #FF8C00;
+}
+
+.dark-theme .leaderboard-list {
+    background-color: #444;
+}
+
+.dark-theme .leaderboard-item {
+    border-color: #555;
+}
+
+.dark-theme .leaderboard-username {
+    color: #fff;
+}
+
+.dark-theme .leaderboard-level {
+    color: #ccc;
+}
+
+.dark-theme .leaderboard-score-label {
+    color: #ccc;
+}
+
+.dark-theme .leaderboard-loading,
+.dark-theme .leaderboard-info,
+.dark-theme .leaderboard-empty {
+    color: #ccc;
+}
+
+.dark-theme .leaderboard-me {
+    background-color: rgba(255, 140, 0, 0.1);
+} 
