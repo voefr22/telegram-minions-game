@@ -3632,3 +3632,51 @@ document.addEventListener('DOMContentLoaded', function() {
   
   console.log("=== Исправления интерактивных элементов завершены ===");
 });
+
+// Скрипт для добавления цен боксов
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("Добавление цен боксов");
+  
+  // Определяем цены для разных типов боксов
+  const boxPrices = {
+    'simple': 10,
+    'standard': 25,
+    'premium': 50,
+    'mega': 100,
+    'special': 75
+  };
+  
+  // Обновляем отображение информации о боксах
+  document.querySelectorAll('.box').forEach(boxElement => {
+    const boxType = boxElement.getAttribute('data-type');
+    if (!boxType) return;
+    
+    // Получаем элемент, отображающий цену
+    const costElement = boxElement.querySelector('.box-cost');
+    if (costElement) {
+      // Проверяем, есть ли этот тип бокса в нашем справочнике цен
+      if (boxPrices[boxType]) {
+        costElement.textContent = `${boxPrices[boxType]} 🍌`;
+        costElement.style.fontWeight = 'bold';
+        costElement.style.color = '#FF8C00';
+      }
+    }
+    
+    // Проверяем наличие кнопки открытия
+    const openButton = boxElement.querySelector('.open-box-btn');
+    if (openButton) {
+      // Обновляем текст кнопки, чтобы включить цену
+      if (boxPrices[boxType]) {
+        openButton.textContent = `Открыть за ${boxPrices[boxType]} 🍌`;
+      }
+    }
+    
+    // Делаем надпись цены более заметной
+    const boxInfo = boxElement.querySelector('.box-info');
+    if (boxInfo) {
+      boxInfo.style.marginBottom = '10px';
+    }
+  });
+  
+  console.log("Цены боксов обновлены");
+});
