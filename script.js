@@ -953,92 +953,75 @@ function claimDailyReward() {
 
 // Инициализация
 async function init() {
-    try {
-        console.log("Инициализация игры");
-        
-        // Исправляем экран загрузки
-        const splashScreen = fixSplashScreen();
-        
-        // Кэшируем элементы
-        cacheElements();
-        
-        // Загружаем настройки
-        loadSettings();
-        
-        // Устанавливаем корректные fallback для изображений
-        setImageFallbacks();
-        
-        // Исправляем меню
-        fixMenuClicks();
-        
-        // Предзагрузка изображений с правильным отслеживанием прогресса
-        preloadResources(() => {
-            console.log("Предзагрузка ресурсов завершена");
-            
-            // Инициализируем UI
-            initializeUI();
-            
-            // Загружаем состояние игры
-            loadGameState();
-            
-            // Проверяем ежедневный вход
-            checkDailyLogin();
-            
-            // Проверяем реферальную ссылку
-            checkReferralLink();
-            
-            // Инициализируем ферму
-            initFarm();
-            
-            // Инициализируем магазин
-            initShop();
-            
-            // Инициализируем главный экран
-            initMainScreen();
-            
-            // Обновляем статистику
-            updateStats();
-            
-            // Обновляем прогресс заданий
-            updateTaskProgress();
-            
-            // Обновляем достижения
-            updateAchievements();
-            
-            // Проверяем задания с ресурсами
-            checkResourceTasks();
-            
-            // Инициализируем интерактивного миньона
-            initInteractiveMinion();
-            
-            // Синхронизируем с сервером
-            syncWithServer();
-            
-            // Запускаем периодическое обновление
-            setInterval(updateStats, 1000);
-            setInterval(updateTaskProgress, 1000);
-            setInterval(updateFarm, 1000);
-            setInterval(updateMainBananas, 1000);
-            setInterval(updateLevelProgress, 1000);
-            setInterval(updateAchievements, 5000);
-            setInterval(checkResourceTasks, 5000);
-            setInterval(syncWithServer, 30000);
-            
-            // Скрываем экран загрузки через 2 секунды
-            setTimeout(() => {
-                if (splashScreen) {
-                    splashScreen.style.opacity = '0';
-                    setTimeout(() => {
-                        splashScreen.style.display = 'none';
-                        showSection('main-screen');
-                        playSound('task');
-                    }, 500);
-                }
-            }, 2000);
-        });
-    } catch (e) {
-        handleError('Критическая ошибка при инициализации игры', e);
-    }
+  try {
+    console.log("Инициализация игры");
+    
+    // Загружаем настройки
+    loadSettings();
+    
+    // Загружаем состояние игры
+    loadGameState();
+    
+    // Инициализируем UI только после загрузки DOM
+    document.addEventListener('DOMContentLoaded', function() {
+      // Исправляем экран загрузки
+      const splashScreen = document.getElementById('splash-screen');
+      
+      // Кэшируем элементы
+      cacheElements();
+      
+      // Инициализируем пользовательский интерфейс
+      initializeUI();
+      
+      // Проверяем ежедневный вход
+      checkDailyLogin();
+      
+      // Проверяем реферальную ссылку
+      checkReferralLink();
+      
+      // Инициализируем ферму
+      initFarm();
+      
+      // Инициализируем магазин
+      initShop();
+      
+      // Инициализируем главный экран
+      initMainScreen();
+      
+      // Обновляем статистику
+      updateStats();
+      
+      // Обновляем прогресс заданий
+      updateTaskProgress();
+      
+      // Обновляем достижения
+      updateAchievements();
+      
+      // Синхронизируем с сервером
+      syncWithServer();
+      
+      // Запускаем периодическое обновление
+      setInterval(updateStats, 1000);
+      setInterval(updateTaskProgress, 1000);
+      setInterval(updateFarm, 1000);
+      
+      // Устанавливаем обработчики для меню 
+      fixMenuClicks();
+      
+      // Отображаем главный экран после загрузки
+      setTimeout(() => {
+        if (splashScreen) {
+          splashScreen.style.opacity = '0';
+          setTimeout(() => {
+            splashScreen.style.display = 'none';
+            showSection('main-screen');
+          }, 500);
+        }
+      }, 2000);
+    });
+  } catch (e) {
+    handleError('Критическая ошибка при инициализации игры', e);
+  }
 }
 
 // Инициализация UI-элементов 
@@ -1237,25 +1220,25 @@ function domElementExists(id) {
 }
 // Исправленная функция для показа секций
 function showSection(sectionId) {
-    console.log("Показываем секцию:", sectionId);
-    
-    // Нормализуем ID секции (добавляем "-section", если его нет)
-    if (!sectionId.endsWith('-section')) {
-        sectionId = sectionId + '-section';
+  console.log("Показываем секцию:", sectionId);
+  
+  try {
+    // Нормализуем ID секции
+    if (sectionId !== 'main-screen' && !sectionId.endsWith('-section')) {
+      sectionId = sectionId + '-section';
     }
     
     // Получаем элемент секции
     const targetSection = document.getElementById(sectionId);
     if (!targetSection) {
-        console.warn(`Секция не найдена: ${sectionId}`);
-        return;
+      console.warn(`Секция не найдена: ${sectionId}`);
+      return;
     }
     
     // Скрываем все секции
-    const sections = document.querySelectorAll('.section, [id$="-section"]');
-    sections.forEach(section => {
-        section.style.display = 'none';
-        section.classList.remove('active-section');
+    document.querySelectorAll('.section, [id$="-section"]').forEach(section => {
+      section.style.display = 'none';
+      section.classList.remove('active-section');
     });
     
     // Показываем целевую секцию
@@ -1263,16 +1246,21 @@ function showSection(sectionId) {
     targetSection.classList.add('active-section');
     
     // Обновляем активные пункты меню
-    const menuItems = document.querySelectorAll('.menu-item');
-    menuItems.forEach(item => {
-        item.classList.remove('active');
-        const itemSection = item.getAttribute('data-section');
-        if (itemSection === sectionId || itemSection + '-section' === sectionId) {
-            item.classList.add('active');
-        }
+    document.querySelectorAll('.menu-item').forEach(item => {
+      item.classList.remove('active');
+      const itemSection = item.getAttribute('data-section');
+      if (itemSection === sectionId || itemSection + '-section' === sectionId) {
+        item.classList.add('active');
+      }
     });
-    
-    console.log(`Секция ${sectionId} отображена`);
+  } catch (error) {
+    console.error("Ошибка при отображении секции:", error);
+    // Показываем главный экран в случае ошибки
+    const mainScreen = document.getElementById('main-screen');
+    if (mainScreen) {
+      mainScreen.style.display = 'block';
+    }
+  }
 }
 // Выполнение задания
 function completeTask(taskId) {
@@ -3459,3 +3447,67 @@ function updateActiveMenuItem(sectionId) {
     
     console.log("🎮 Экстренное исправление завершено!");
 })();
+
+// Унифицированная функция для обработки кликов меню
+function fixMenuClicks() {
+  console.log("Инициализация меню");
+  
+  // Добавляем обработчики для всех пунктов меню
+  document.querySelectorAll('.menu-item').forEach(item => {
+    // Очищаем существующие обработчики для избежания дублирования
+    const newItem = item.cloneNode(true);
+    if (item.parentNode) {
+      item.parentNode.replaceChild(newItem, item);
+    }
+    
+    // Добавляем обработчик клика
+    newItem.addEventListener('click', function() {
+      const sectionId = this.getAttribute('data-section');
+      if (sectionId) {
+        // Проигрываем звук клика
+        if (typeof playSound === 'function') {
+          playSound('click');
+        }
+        
+        // Вибрация
+        if (typeof vibrate === 'function') {
+          vibrate(30);
+        }
+        
+        // Переключаем секцию
+        showSection(sectionId);
+      }
+    });
+  });
+}
+
+// Функция для управления экраном загрузки
+function handleLoadingScreen() {
+  const splashScreen = document.getElementById('splash-screen');
+  if (!splashScreen) return;
+  
+  const progressBar = document.getElementById('loading-progress-bar');
+  const progressText = document.getElementById('loading-progress');
+  
+  let progress = 0;
+  const interval = setInterval(() => {
+    progress += 5;
+    
+    if (progressBar) progressBar.style.width = progress + '%';
+    if (progressText) progressText.textContent = progress + '%';
+    
+    if (progress >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        splashScreen.style.opacity = '0';
+        setTimeout(() => {
+          splashScreen.style.display = 'none';
+          showSection('main-screen');
+        }, 500);
+      }, 500);
+    }
+  }, 100);
+}
+
+// Вызываем эту функцию после загрузки DOM
+document.addEventListener('DOMContentLoaded', handleLoadingScreen);
