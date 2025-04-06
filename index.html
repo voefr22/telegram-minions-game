@@ -21,7 +21,7 @@
     <!-- Splash screen -->
     <div id="splash-screen">
         <div class="splash-content">
-            <img src="images/logo.png" alt="Minions Game" class="splash-logo" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
+            <img src="images/logo.png" alt="" class="splash-logo" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
             <div class="loading-container">
                 <div class="loading-bar">
                     <div class="loading-progress"></div>
@@ -62,7 +62,7 @@
             </div>
             
             <div class="farm-image">
-                <img src="images/farm.png" alt="Банановая ферма" onerror="this.src='https://i.imgur.com/S9yfHm9.png'" />
+                <img src="images/farm.png" alt="" onerror="this.onerror=null; this.src='https://i.imgur.com/S9yfHm9.png';">
             </div>
             
             <div class="farm-actions">
@@ -145,29 +145,45 @@
     <div id="boxes-section" class="section hidden-section">
         <h2 class="section-heading">Боксы</h2>
         <div class="boxes-container">
-            <div class="box" data-type="common">
-                <img class="box-img" src="images/box_common.png" alt="Обычный бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
+            <div class="box" data-type="simple">
+                <img class="box-img" src="images/box_simple.png" alt="" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
                 <div class="box-info">
-                    <div class="box-name">Обычный бокс</div>
+                    <div class="box-name">Простой бокс</div>
                     <div class="box-cost">10 🍌</div>
                 </div>
-                <button class="open-box-btn" data-type="common">Открыть</button>
+                <button class="open-box-btn" data-type="simple">Открыть</button>
             </div>
-            <div class="box" data-type="rare">
-                <img class="box-img" src="images/box_rare.png" alt="Редкий бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
+            <div class="box" data-type="standard">
+                <img class="box-img" src="images/box_standard.png" alt="" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
                 <div class="box-info">
-                    <div class="box-name">Редкий бокс</div>
+                    <div class="box-name">Стандартный бокс</div>
+                    <div class="box-cost">25 🍌</div>
+                </div>
+                <button class="open-box-btn" data-type="standard">Открыть</button>
+            </div>
+            <div class="box" data-type="premium">
+                <img class="box-img" src="images/box_premium.png" alt="" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
+                <div class="box-info">
+                    <div class="box-name">Премиум бокс</div>
                     <div class="box-cost">50 🍌</div>
                 </div>
-                <button class="open-box-btn" data-type="rare">Открыть</button>
+                <button class="open-box-btn" data-type="premium">Открыть</button>
             </div>
             <div class="box" data-type="mega">
-                <img class="box-img" src="images/box_mega.png" alt="Мега бокс" onerror="this.src='https://i.imgur.com/ZcukEsb.png'">
+                <img class="box-img" src="images/box_mega.png" alt="" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
                 <div class="box-info">
                     <div class="box-name">Мега бокс</div>
                     <div class="box-cost">100 🍌</div>
                 </div>
                 <button class="open-box-btn" data-type="mega">Открыть</button>
+            </div>
+            <div class="box" data-type="special">
+                <img class="box-img" src="images/box_special.png" alt="" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
+                <div class="box-info">
+                    <div class="box-name">Специальный бокс</div>
+                    <div class="box-cost">75 🍌</div>
+                </div>
+                <button class="open-box-btn" data-type="special">Открыть</button>
             </div>
         </div>
     </div>
@@ -302,7 +318,7 @@
     <div id="box-animation-container" class="modal-container">
         <div class="close-btn" onclick="closeModal('box-animation-container')">✖</div>
         <div class="box-animation-content">
-            <img id="box-image" src="images/box_simple.png" alt="Бокс">
+            <img id="box-image" src="images/box_simple.png" alt="" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
             <div id="box-reward" class="box-reward"></div>
         </div>
     </div>
