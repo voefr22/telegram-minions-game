@@ -953,143 +953,91 @@ function claimDailyReward() {
 
 // Инициализация
 async function init() {
-    console.log("Инициализация приложения");
-    
     try {
-        // Cache DOM elements
+        console.log("Инициализация игры");
+        
+        // Исправляем экран загрузки
+        const splashScreen = fixSplashScreen();
+        
+        // Кэшируем элементы
         cacheElements();
         
-        // Проверяем наличие элемента экрана загрузки
-        if (gameElements.splashScreen) {
-            gameElements.splashScreen.style.display = 'flex';
-        } else {
-            console.warn('Элемент splash-screen не найден');
-        }
-        
         // Загружаем настройки
-        try {
-            loadSettings();
-        } catch (e) {
-            console.error('Ошибка при загрузке настроек, используем значения по умолчанию', e);
-        }
+        loadSettings();
         
         // Устанавливаем корректные fallback для изображений
         setImageFallbacks();
         
+        // Исправляем меню
+        fixMenuClicks();
+        
         // Предзагрузка изображений с правильным отслеживанием прогресса
-        try {
-            preloadResources(() => {
-                // Загрузка ресурсов завершена
-                console.log("Предзагрузка изображений завершена");
-            });
-        } catch (e) {
-            console.error('Ошибка при предзагрузке изображений', e);
-        }
-        
-        // Если приложение запущено в Telegram, получаем идентификатор пользователя
-        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            try {
-                const user = tg.initDataUnsafe.user;
-                settings.userId = user.id.toString();
-                
-                const userNameElement = document.getElementById('user-name');
-                if (userNameElement) {
-                    userNameElement.textContent = user.username || user.first_name || 'Игрок';
-                }
-                
-                // Устанавливаем аватар пользователя, если он есть
-                if (user.photo_url) {
-                    const avatarElements = document.querySelectorAll('.profile-avatar, .profile-avatar-small');
-                    avatarElements.forEach(elem => {
-                        elem.style.backgroundImage = `url('${user.photo_url}')`;
-                    });
-                }
-                
-                // Включаем синхронизацию
-                settings.serverSync = true;
-                saveSettings();
-                
-                // Пробуем загрузить данные с сервера
-                let serverLoaded = false;
-                try {
-                    serverLoaded = await loadFromServer();
-                } catch (e) {
-                    console.error('Ошибка при загрузке с сервера', e);
-                }
-                
-                // Если не удалось загрузить с сервера, пробуем из localStorage
-                if (!serverLoaded) {
-                    try {
-                        loadGameState();
-                    } catch (e) {
-                        console.error('Ошибка при загрузке из localStorage', e);
-                    }
-                }
-                
-                // Проверяем реферальную ссылку
-                checkReferralLink();
-            } catch (e) {
-                console.error('Ошибка при обработке данных Telegram', e);
-            }
-        } else {
-            const userNameElement = document.getElementById('user-name');
-            if (userNameElement) {
-                userNameElement.textContent = 'Игрок';
-            }
+        preloadResources(() => {
+            console.log("Предзагрузка ресурсов завершена");
             
-            try {
-                loadGameState();
-            } catch (e) {
-                console.error('Ошибка при загрузке игрового состояния', e);
-            }
-        }
-        
-        // Обновляем статистику и прогресс
-        try {
-            updateStats();
-            updateTaskProgress();
-        } catch (e) {
-            console.error('Ошибка при обновлении статистики', e);
-        }
-        
-        // Инициализация UI и новых секций
-        try {
+            // Инициализируем UI
             initializeUI();
-            initFarmState();
+            
+            // Загружаем состояние игры
+            loadGameState();
+            
+            // Проверяем ежедневный вход
+            checkDailyLogin();
+            
+            // Проверяем реферальную ссылку
+            checkReferralLink();
+            
+            // Инициализируем ферму
+            initFarm();
+            
+            // Инициализируем магазин
             initShop();
+            
+            // Инициализируем главный экран
             initMainScreen();
-        } catch (e) {
-            console.error('Ошибка при инициализации UI', e);
-        }
-        
-        // Гарантированно закрываем экран загрузки через 2 секунды
-        setTimeout(function() {
-            try {
-                if (gameElements.splashScreen) {
-                    gameElements.splashScreen.style.opacity = 0;
-                    setTimeout(function() {
-                        gameElements.splashScreen.style.display = 'none';
-                        
-                        // Показываем первую секцию (главный экран)
+            
+            // Обновляем статистику
+            updateStats();
+            
+            // Обновляем прогресс заданий
+            updateTaskProgress();
+            
+            // Обновляем достижения
+            updateAchievements();
+            
+            // Проверяем задания с ресурсами
+            checkResourceTasks();
+            
+            // Инициализируем интерактивного миньона
+            initInteractiveMinion();
+            
+            // Синхронизируем с сервером
+            syncWithServer();
+            
+            // Запускаем периодическое обновление
+            setInterval(updateStats, 1000);
+            setInterval(updateTaskProgress, 1000);
+            setInterval(updateFarm, 1000);
+            setInterval(updateMainBananas, 1000);
+            setInterval(updateLevelProgress, 1000);
+            setInterval(updateAchievements, 5000);
+            setInterval(checkResourceTasks, 5000);
+            setInterval(syncWithServer, 30000);
+            
+            // Скрываем экран загрузки через 2 секунды
+            setTimeout(() => {
+                if (splashScreen) {
+                    splashScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        splashScreen.style.display = 'none';
                         showSection('main-screen');
+                        playSound('task');
                     }, 500);
-                    
-                    // Проигрываем приветственный звук
-                    playSound('task');
-                } else {
-                    showSection('main-screen');
                 }
-            } catch (e) {
-                // Критическая ошибка - напрямую скрываем экран загрузки и показываем сообщение
-                if (gameElements.splashScreen) gameElements.splashScreen.style.display = 'none';
-                handleError('Критическая ошибка при инициализации интерфейса', e);
-            }
-        }, 2000);
-        
-        console.log("Инициализация приложения завершена");
-    } catch (error) {
-        // Общий обработчик ошибок
-        handleError("Ошибка при инициализации приложения", error);
+            }, 2000);
+        });
+    } catch (e) {
+        handleError('Критическая ошибка при инициализации игры', e);
     }
 }
 
@@ -2901,3 +2849,613 @@ document.addEventListener('DOMContentLoaded', () => {
     initFarm();
     // ... existing initialization code ...
 });
+
+// Проверяем, существует ли элемент экрана загрузки и правильно ли он отображается
+function fixSplashScreen() {
+    console.log("Исправление экрана загрузки");
+    
+    // Проверяем, существует ли элемент
+    let splashScreen = document.getElementById('splash-screen');
+    
+    // Если элемент не существует, создаем его
+    if (!splashScreen) {
+        console.log("Элемент splash-screen не найден, создаем новый");
+        
+        splashScreen = document.createElement('div');
+        splashScreen.id = 'splash-screen';
+        splashScreen.innerHTML = `
+            <div class="splash-content">
+                <img src="images/logo.png" alt="" class="splash-logo" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
+                <div class="loading-container">
+                    <div class="loading-bar">
+                        <div class="loading-progress"></div>
+                    </div>
+                    <div class="loading-text">Загрузка... <span id="loading-progress">0%</span></div>
+                </div>
+            </div>
+        `;
+        
+        // Добавляем необходимые стили
+        splashScreen.style.position = 'fixed';
+        splashScreen.style.top = '0';
+        splashScreen.style.left = '0';
+        splashScreen.style.width = '100%';
+        splashScreen.style.height = '100%';
+        splashScreen.style.background = 'linear-gradient(135deg, #FFE500, #FFB700)';
+        splashScreen.style.display = 'flex';
+        splashScreen.style.justifyContent = 'center';
+        splashScreen.style.alignItems = 'center';
+        splashScreen.style.zIndex = '9999';
+        
+        // Добавляем в body как первый элемент
+        document.body.insertBefore(splashScreen, document.body.firstChild);
+    } else {
+        // Если элемент существует, убедимся, что он отображается правильно
+        console.log("Элемент splash-screen найден, исправляем его стили");
+        
+        splashScreen.style.display = 'flex';
+        splashScreen.style.opacity = '1';
+        splashScreen.style.zIndex = '9999';
+    }
+    
+    // Обновляем содержимое, если необходимо
+    const splashContent = splashScreen.querySelector('.splash-content');
+    if (!splashContent) {
+        splashScreen.innerHTML = `
+            <div class="splash-content">
+                <img src="images/logo.png" alt="" class="splash-logo" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
+                <div class="loading-container">
+                    <div class="loading-bar">
+                        <div class="loading-progress"></div>
+                    </div>
+                    <div class="loading-text">Загрузка... <span id="loading-progress">0%</span></div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Запускаем анимацию загрузки
+    let progress = 0;
+    const progressBar = splashScreen.querySelector('.loading-progress');
+    const progressText = splashScreen.querySelector('#loading-progress');
+    
+    if (progressBar && progressText) {
+        const loadingInterval = setInterval(() => {
+            progress += 5;
+            if (progress > 100) {
+                clearInterval(loadingInterval);
+                
+                // Скрываем экран загрузки после завершения
+                setTimeout(() => {
+                    splashScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        splashScreen.style.display = 'none';
+                        
+                        // Отображаем главный экран после закрытия экрана загрузки
+                        showSection('main-screen');
+                    }, 500);
+                }, 500);
+                
+                return;
+            }
+            
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+        }, 100);
+    }
+    
+    // Возвращаем элемент для дальнейшего использования
+    return splashScreen;
+}
+
+// Исправление для кликабельности пунктов меню
+function fixMenuClicks() {
+    console.log("Исправление кликабельности меню");
+    
+    // Находим меню
+    const menuItems = document.querySelectorAll('.menu-item');
+    
+    if (!menuItems || menuItems.length === 0) {
+        console.warn("Элементы меню не найдены");
+        
+        // Попробуем найти нижнее меню и восстановить его
+        const bottomMenu = document.querySelector('.bottom-menu');
+        if (bottomMenu) {
+            console.log("Нашли контейнер меню, пробуем восстановить элементы");
+            
+            // Очистим и заново создадим элементы меню
+            bottomMenu.innerHTML = `
+                <div class="menu-item" data-section="main-screen">Главная</div>
+                <div class="menu-item" data-section="tasks-section">Задания</div>
+                <div class="menu-item" data-section="boxes-section">Боксы</div>
+                <div class="menu-item" data-section="farm-section">Ферма</div>
+                <div class="menu-item" data-section="profile-section">Профиль</div>
+            `;
+            
+            // Заново добавим обработчики
+            attachMenuHandlers();
+        } else {
+            console.error("Меню не найдено, создаем новое");
+            
+            // Создаем новое меню
+            const newMenu = document.createElement('div');
+            newMenu.className = 'bottom-menu';
+            newMenu.innerHTML = `
+                <div class="menu-item" data-section="main-screen">Главная</div>
+                <div class="menu-item" data-section="tasks-section">Задания</div>
+                <div class="menu-item" data-section="boxes-section">Боксы</div>
+                <div class="menu-item" data-section="farm-section">Ферма</div>
+                <div class="menu-item" data-section="profile-section">Профиль</div>
+            `;
+            
+            // Применяем базовые стили для меню
+            newMenu.style.position = 'fixed';
+            newMenu.style.bottom = '0';
+            newMenu.style.left = '0';
+            newMenu.style.width = '100%';
+            newMenu.style.display = 'flex';
+            newMenu.style.justifyContent = 'space-around';
+            newMenu.style.backgroundColor = '#FFB700';
+            newMenu.style.padding = '10px 0';
+            newMenu.style.boxShadow = '0 -4px 10px rgba(0,0,0,0.1)';
+            newMenu.style.zIndex = '10';
+            
+            // Добавляем меню в body
+            document.body.appendChild(newMenu);
+            
+            // Добавляем обработчики
+            attachMenuHandlers();
+        }
+    } else {
+        console.log(`Найдено ${menuItems.length} элементов меню, восстанавливаем обработчики`);
+        
+        // Просто переназначаем обработчики для существующих элементов
+        attachMenuHandlers();
+    }
+}
+
+// Функция для добавления обработчиков к элементам меню
+function attachMenuHandlers() {
+    const menuItems = document.querySelectorAll('.menu-item');
+    
+    menuItems.forEach(item => {
+        // Удаляем старые обработчики, если есть
+        const newItem = item.cloneNode(true);
+        item.parentNode.replaceChild(newItem, item);
+        
+        // Применяем стили к элементам меню
+        newItem.style.color = '#333';
+        newItem.style.textAlign = 'center';
+        newItem.style.cursor = 'pointer';
+        newItem.style.transition = 'all 0.3s';
+        newItem.style.fontWeight = 'bold';
+        newItem.style.padding = '8px 10px';
+        newItem.style.borderRadius = '20px';
+        newItem.style.fontSize = '14px';
+        
+        // Добавляем новый обработчик
+        newItem.addEventListener('click', function(event) {
+            // Предотвращаем стандартное поведение
+            event.preventDefault();
+            
+            // Получаем идентификатор секции
+            const sectionId = this.getAttribute('data-section');
+            if (sectionId) {
+                console.log(`Клик по пункту меню: ${sectionId}`);
+                
+                // Проигрываем звук клика, если функция доступна
+                if (typeof playSound === 'function') {
+                    playSound('click');
+                }
+                
+                // Вибрация, если функция доступна
+                if (typeof vibrate === 'function') {
+                    vibrate(30);
+                }
+                
+                // Показываем соответствующую секцию
+                showSection(sectionId);
+                
+                // Делаем элемент активным
+                document.querySelectorAll('.menu-item').forEach(menuItem => {
+                    menuItem.classList.remove('active');
+                });
+                this.classList.add('active');
+            }
+        });
+        
+        console.log(`Добавлен обработчик для меню: ${newItem.getAttribute('data-section')}`);
+    });
+}
+
+// Улучшенная функция для переключения секций
+function showSection(sectionId) {
+    console.log(`Показываем секцию: ${sectionId}`);
+    
+    try {
+        // Нормализуем ID секции (добавляем "-section", если его нет и это не main-screen)
+        if (sectionId !== 'main-screen' && !sectionId.endsWith('-section')) {
+            sectionId = sectionId + '-section';
+        }
+        
+        // Получаем элемент секции
+        const targetSection = document.getElementById(sectionId);
+        
+        // Если секция не найдена, пробуем создать ее
+        if (!targetSection) {
+            console.warn(`Секция ${sectionId} не найдена, пробуем создать`);
+            
+            // Создаем простую заглушку для секции
+            const newSection = document.createElement('div');
+            newSection.id = sectionId;
+            newSection.className = 'section';
+            newSection.innerHTML = `<h2 class="section-heading">${sectionId.replace('-section', '').toUpperCase()}</h2>`;
+            
+            // Добавляем секцию в body
+            document.body.appendChild(newSection);
+            
+            // Обновляем ссылку на секцию
+            const createdSection = document.getElementById(sectionId);
+            
+            if (createdSection) {
+                // Скрываем все секции
+                document.querySelectorAll('.section, [id$="-section"]').forEach(section => {
+                    section.style.display = 'none';
+                });
+                
+                // Показываем созданную секцию
+                createdSection.style.display = 'block';
+                
+                // Обновляем активные пункты меню
+                updateActiveMenuItem(sectionId);
+                
+                console.log(`Секция ${sectionId} создана и отображена`);
+                return; // Прерываем выполнение функции
+            }
+        } else {
+            // Скрываем все секции
+            document.querySelectorAll('.section, [id$="-section"]').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Показываем целевую секцию
+            targetSection.style.display = 'block';
+            
+            // Обновляем активные пункты меню
+            updateActiveMenuItem(sectionId);
+            
+            console.log(`Секция ${sectionId} отображена`);
+        }
+    } catch (error) {
+        console.error(`Ошибка при переключении на секцию ${sectionId}:`, error);
+        
+        // В случае ошибки, показываем главный экран как запасной вариант
+        const mainScreen = document.getElementById('main-screen');
+        if (mainScreen) {
+            document.querySelectorAll('.section, [id$="-section"]').forEach(section => {
+                section.style.display = 'none';
+            });
+            mainScreen.style.display = 'block';
+            console.log("Показан главный экран из-за ошибки");
+        }
+    }
+}
+
+// Функция для обновления активного пункта меню
+function updateActiveMenuItem(sectionId) {
+    // Удаляем класс active у всех пунктов меню
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Добавляем класс active для соответствующего пункта меню
+    const menuItem = document.querySelector(`.menu-item[data-section="${sectionId}"]`) || 
+                    document.querySelector(`.menu-item[data-section="${sectionId.replace('-section', '')}"]`);
+    
+    if (menuItem) {
+        menuItem.classList.add('active');
+    }
+}
+
+// Экстренный скрипт для восстановления функциональности игры
+// Вставьте этот скрипт в консоль браузера (F12) для быстрого исправления критических ошибок
+
+(function() {
+    console.log("🚨 Запуск экстренного исправления Minions Game 🚨");
+    
+    // 1. Исправление экрана загрузки
+    function fixSplashScreen() {
+        console.log("Исправление экрана загрузки");
+        
+        // Проверяем, существует ли элемент
+        let splashScreen = document.getElementById('splash-screen');
+        
+        // Если элемент не существует, создаем его
+        if (!splashScreen) {
+            console.log("Элемент splash-screen не найден, создаем новый");
+            
+            splashScreen = document.createElement('div');
+            splashScreen.id = 'splash-screen';
+            splashScreen.innerHTML = `
+                <div class="splash-content">
+                    <img src="images/logo.png" alt="" class="splash-logo" onerror="this.onerror=null; this.src='https://i.imgur.com/ZcukEsb.png';">
+                    <div class="loading-container">
+                        <div class="loading-bar">
+                            <div class="loading-progress"></div>
+                        </div>
+                        <div class="loading-text">Загрузка... <span id="loading-progress">0%</span></div>
+                    </div>
+                </div>
+            `;
+            
+            // Добавляем необходимые стили
+            splashScreen.style.position = 'fixed';
+            splashScreen.style.top = '0';
+            splashScreen.style.left = '0';
+            splashScreen.style.width = '100%';
+            splashScreen.style.height = '100%';
+            splashScreen.style.background = 'linear-gradient(135deg, #FFE500, #FFB700)';
+            splashScreen.style.display = 'flex';
+            splashScreen.style.justifyContent = 'center';
+            splashScreen.style.alignItems = 'center';
+            splashScreen.style.zIndex = '9999';
+            
+            // Добавляем в body как первый элемент
+            document.body.insertBefore(splashScreen, document.body.firstChild);
+        } else {
+            // Если элемент существует, убедимся, что он отображается правильно
+            console.log("Элемент splash-screen найден, исправляем его стили");
+            
+            splashScreen.style.display = 'flex';
+            splashScreen.style.opacity = '1';
+            splashScreen.style.zIndex = '9999';
+        }
+        
+        return splashScreen;
+    }
+    
+    // 2. Исправление кликабельности меню
+    function fixMenuClicks() {
+        console.log("Исправление кликабельности меню");
+        
+        // Находим меню
+        const menuItems = document.querySelectorAll('.menu-item');
+        
+        if (!menuItems || menuItems.length === 0) {
+            console.warn("Элементы меню не найдены");
+            
+            // Попробуем найти нижнее меню и восстановить его
+            const bottomMenu = document.querySelector('.bottom-menu');
+            if (bottomMenu) {
+                console.log("Нашли контейнер меню, пробуем восстановить элементы");
+                
+                // Очистим и заново создадим элементы меню
+                bottomMenu.innerHTML = `
+                    <div class="menu-item" data-section="main-screen">Главная</div>
+                    <div class="menu-item" data-section="tasks-section">Задания</div>
+                    <div class="menu-item" data-section="boxes-section">Боксы</div>
+                    <div class="menu-item" data-section="farm-section">Ферма</div>
+                    <div class="menu-item" data-section="profile-section">Профиль</div>
+                `;
+            } else {
+                console.error("Меню не найдено, создаем новое");
+                
+                // Создаем новое меню
+                const newMenu = document.createElement('div');
+                newMenu.className = 'bottom-menu';
+                newMenu.innerHTML = `
+                    <div class="menu-item" data-section="main-screen">Главная</div>
+                    <div class="menu-item" data-section="tasks-section">Задания</div>
+                    <div class="menu-item" data-section="boxes-section">Боксы</div>
+                    <div class="menu-item" data-section="farm-section">Ферма</div>
+                    <div class="menu-item" data-section="profile-section">Профиль</div>
+                `;
+                
+                // Применяем базовые стили для меню
+                newMenu.style.position = 'fixed';
+                newMenu.style.bottom = '0';
+                newMenu.style.left = '0';
+                newMenu.style.width = '100%';
+                newMenu.style.display = 'flex';
+                newMenu.style.justifyContent = 'space-around';
+                newMenu.style.backgroundColor = '#FFB700';
+                newMenu.style.padding = '10px 0';
+                newMenu.style.boxShadow = '0 -4px 10px rgba(0,0,0,0.1)';
+                newMenu.style.zIndex = '10';
+                
+                // Добавляем меню в body
+                document.body.appendChild(newMenu);
+            }
+        }
+        
+        // Добавляем обработчики для всех элементов меню
+        document.querySelectorAll('.menu-item').forEach(item => {
+            // Удаляем старые обработчики, если есть
+            const newItem = item.cloneNode(true);
+            item.parentNode.replaceChild(newItem, item);
+            
+            // Стили для элементов меню
+            newItem.style.color = '#333';
+            newItem.style.textAlign = 'center';
+            newItem.style.cursor = 'pointer';
+            newItem.style.transition = 'all 0.3s';
+            newItem.style.fontWeight = 'bold';
+            newItem.style.padding = '8px 10px';
+            newItem.style.borderRadius = '20px';
+            newItem.style.fontSize = '14px';
+            
+            // Добавляем новый обработчик
+            newItem.addEventListener('click', function(event) {
+                // Предотвращаем стандартное поведение
+                event.preventDefault();
+                
+                // Получаем идентификатор секции
+                const sectionId = this.getAttribute('data-section');
+                if (sectionId) {
+                    console.log(`Клик по пункту меню: ${sectionId}`);
+                    
+                    // Показываем соответствующую секцию
+                    showSectionEmergency(sectionId);
+                    
+                    // Делаем элемент активным
+                    document.querySelectorAll('.menu-item').forEach(menuItem => {
+                        menuItem.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                }
+            });
+        });
+        
+        // Показываем сообщение об успешном восстановлении
+        showEmergencyMessage('Меню успешно восстановлено', 'success');
+    }
+    
+    // 3. Экстренная функция для переключения секций
+    function showSectionEmergency(sectionId) {
+        console.log(`Показываем секцию: ${sectionId}`);
+        
+        try {
+            // Нормализуем ID секции (добавляем "-section", если его нет и это не main-screen)
+            if (sectionId !== 'main-screen' && !sectionId.endsWith('-section')) {
+                sectionId = sectionId + '-section';
+            }
+            
+            // Получаем все секции
+            const sections = document.querySelectorAll('.section, [id$="-section"]');
+            
+            // Скрываем все секции
+            sections.forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Проверяем, существует ли целевая секция
+            const targetSection = document.getElementById(sectionId);
+            
+            if (targetSection) {
+                // Показываем целевую секцию
+                targetSection.style.display = 'block';
+                console.log(`Секция ${sectionId} отображена`);
+                
+                // Показываем сообщение об успешном переключении
+                showEmergencyMessage(`Переключено на ${sectionId}`, 'info');
+            } else {
+                console.warn(`Секция ${sectionId} не найдена`);
+                
+                // Показываем сообщение об ошибке
+                showEmergencyMessage(`Секция ${sectionId} не найдена`, 'error');
+                
+                // Показываем главный экран как запасной вариант
+                const mainScreen = document.getElementById('main-screen');
+                if (mainScreen) {
+                    mainScreen.style.display = 'block';
+                }
+            }
+        } catch (error) {
+            console.error(`Ошибка при переключении на секцию ${sectionId}:`, error);
+            
+            // Показываем сообщение об ошибке
+            showEmergencyMessage('Ошибка при переключении секции', 'error');
+        }
+    }
+    
+    // 4. Функция для отображения сообщений
+    function showEmergencyMessage(message, type = 'info') {
+        // Создаем элемент сообщения
+        const messageElement = document.createElement('div');
+        
+        // Устанавливаем стиль в зависимости от типа
+        let backgroundColor, color;
+        
+        switch (type) {
+            case 'success':
+                backgroundColor = '#4CAF50';
+                color = 'white';
+                break;
+            case 'error':
+                backgroundColor = '#F44336';
+                color = 'white';
+                break;
+            case 'info':
+            default:
+                backgroundColor = '#2196F3';
+                color = 'white';
+                break;
+        }
+        
+        // Применяем стили
+        messageElement.style.position = 'fixed';
+        messageElement.style.top = '20px';
+        messageElement.style.left = '50%';
+        messageElement.style.transform = 'translateX(-50%)';
+        messageElement.style.backgroundColor = backgroundColor;
+        messageElement.style.color = color;
+        messageElement.style.padding = '10px 20px';
+        messageElement.style.borderRadius = '4px';
+        messageElement.style.zIndex = '10000';
+        messageElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+        messageElement.style.transition = 'opacity 0.3s ease';
+        
+        // Устанавливаем текст сообщения
+        messageElement.textContent = message;
+        
+        // Добавляем сообщение на страницу
+        document.body.appendChild(messageElement);
+        
+        // Удаляем сообщение через 3 секунды
+        setTimeout(() => {
+            messageElement.style.opacity = '0';
+            setTimeout(() => {
+                if (messageElement.parentNode) {
+                    messageElement.parentNode.removeChild(messageElement);
+                }
+            }, 300);
+        }, 3000);
+    }
+    
+    // Запускаем исправления
+    fixSplashScreen();
+    fixMenuClicks();
+    
+    // Запускаем анимацию загрузки
+    let progress = 0;
+    const progressBar = document.querySelector('.loading-progress');
+    const progressText = document.getElementById('loading-progress');
+    
+    if (progressBar && progressText) {
+        const loadingInterval = setInterval(() => {
+            progress += 5;
+            if (progress > 100) {
+                clearInterval(loadingInterval);
+                
+                // Скрываем экран загрузки после завершения
+                const splashScreen = document.getElementById('splash-screen');
+                if (splashScreen) {
+                    setTimeout(() => {
+                        splashScreen.style.opacity = '0';
+                        setTimeout(() => {
+                            splashScreen.style.display = 'none';
+                            
+                            // Показываем главный экран
+                            const mainScreen = document.getElementById('main-screen');
+                            if (mainScreen) {
+                                mainScreen.style.display = 'block';
+                            } else {
+                                showEmergencyMessage('Главный экран не найден', 'error');
+                            }
+                        }, 500);
+                    }, 500);
+                }
+                
+                return;
+            }
+            
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+        }, 50);
+    }
+    
+    // Выводим сообщение о запуске исправлений
+    showEmergencyMessage('Экстренное восстановление игры запущено', 'info');
+    
+    console.log("🎮 Экстренное исправление завершено!");
+})();
