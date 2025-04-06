@@ -4332,3 +4332,715 @@ if (window.TagManager) {
         handleLeaderboardData(data);
     };
 }
+
+// Интеграция функционала рейтинга лидеров
+function initializeLeaderboard() {
+    console.log("Инициализация рейтинга лидеров");
+    
+    // Проверяем, существует ли раздел друзей
+    const friendsSection = document.getElementById('friends-section');
+    if (!friendsSection) {
+        console.error("Секция друзей не найдена");
+        return;
+    }
+    
+    // Проверяем, нужно ли обновить HTML структуру
+    if (!friendsSection.querySelector('.friends-tabs')) {
+        // Получаем текущий заголовок секции
+        const sectionHeading = friendsSection.querySelector('.section-heading');
+        const headingHtml = sectionHeading ? sectionHeading.outerHTML : '<h2 class="section-heading">Друзья</h2>';
+        
+        // Сохраняем кнопку приглашения друзей и список друзей, если они есть
+        const inviteButton = friendsSection.querySelector('#invite-button');
+        const friendsList = friendsSection.querySelector('.friends-list');
+        
+        // Обновляем HTML структуру
+        friendsSection.innerHTML = `
+            ${headingHtml}
+            
+            <!-- Табы для переключения между друзьями и рейтингом -->
+            <div class="friends-tabs">
+                <div class="friends-tab active" data-tab="friends">Друзья</div>
+                <div class="friends-tab" data-tab="leaderboard">Лидеры</div>
+            </div>
+            
+            <!-- Контент для таба друзей -->
+            <div class="friends-content active" id="friends-tab-content">
+                ${inviteButton ? inviteButton.outerHTML : '<button id="invite-button" class="action-button">Пригласить друга</button>'}
+                <div class="friends-list">
+                    ${friendsList ? friendsList.innerHTML : '<!-- Список друзей будет добавлен динамически -->'}
+                </div>
+            </div>
+            
+            <!-- Контент для таба рейтинга -->
+            <div class="friends-content" id="leaderboard-tab-content">
+                <div class="leaderboard-filter">
+                    <button class="leaderboard-filter-btn active" data-filter="global">Глобальный</button>
+                    <button class="leaderboard-filter-btn" data-filter="friends">Друзья</button>
+                </div>
+                <div class="leaderboard-list">
+                    <!-- Список лидеров будет добавлен динамически -->
+                    <div class="leaderboard-loading">Загрузка рейтинга...</div>
+                </div>
+                <div class="leaderboard-info">
+                    <p>Обновляется каждый час</p>
+                    <button id="refresh-leaderboard" class="action-button">Обновить</button>
+                </div>
+            </div>
+        `;
+        
+        console.log("HTML структура рейтинга обновлена");
+    }
+    
+    // Инициализируем табы
+    initLeaderboardTabs();
+    
+    // Добавляем стили для рейтинга, если они еще не добавлены
+    addLeaderboardStyles();
+    
+    // Первоначальная загрузка данных рейтинга
+    if (typeof fetchLeaderboardData === 'function') {
+        fetchLeaderboardData();
+    } else {
+        console.warn("Функция fetchLeaderboardData не найдена");
+        // Добавляем базовую функцию
+        window.fetchLeaderboardData = function(forceUpdate = false) {
+            if (window.TagManager && window.TagManager.leaderboard) {
+                window.TagManager.leaderboard.requestLeaderboardData();
+            } else {
+                console.warn("TagManager.leaderboard не найден");
+            }
+        };
+    }
+    
+    // Инициализируем кнопку обновления
+    const refreshButton = document.getElementById('refresh-leaderboard');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+            if (typeof fetchLeaderboardData === 'function') {
+                fetchLeaderboardData(true);
+            } else if (window.TagManager && window.TagManager.leaderboard) {
+                window.TagManager.leaderboard.requestLeaderboardData();
+            }
+            
+            // Звук и вибрация
+            if (typeof playSound === 'function') {
+                playSound('click');
+            }
+            
+            if (typeof vibrate === 'function') {
+                vibrate([30, 50, 30]);
+            }
+        });
+    }
+    
+    // Инициализация обработчика события при получении данных рейтинга
+    document.addEventListener('leaderboardDataReceived', function(event) {
+        console.log("Получены новые данные рейтинга");
+        if (typeof renderLeaderboard === 'function') {
+            renderLeaderboard(document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') || 'global');
+        }
+    });
+}
+
+// Инициализация табов внутри раздела друзей
+function initLeaderboardTabs() {
+    const tabs = document.querySelectorAll('.friends-tab');
+    const contents = document.querySelectorAll('.friends-content');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Удаляем активный класс у всех табов
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            
+            // Добавляем активный класс текущему табу
+            this.classList.add('active');
+            
+            // Отображаем соответствующий контент
+            const tabName = this.getAttribute('data-tab');
+            document.getElementById(tabName + '-tab-content').classList.add('active');
+            
+            // Если переключились на таб лидеров и данные устарели, обновляем их
+            if (tabName === 'leaderboard') {
+                if (!window.leaderboardData || !window.leaderboardData.lastUpdate || 
+                    Date.now() - window.leaderboardData.lastUpdate > 15 * 60 * 1000) { // Обновляем, если прошло больше 15 минут
+                    if (typeof fetchLeaderboardData === 'function') {
+                        fetchLeaderboardData();
+                    } else if (window.TagManager && window.TagManager.leaderboard) {
+                        window.TagManager.leaderboard.requestLeaderboardData();
+                    }
+                }
+            }
+            
+            // Звук клика
+            if (typeof playSound === 'function') {
+                playSound('click');
+            }
+            
+            if (typeof vibrate === 'function') {
+                vibrate(30);
+            }
+        });
+    });
+    
+    // Инициализация фильтров в рейтинге
+    document.querySelectorAll('.leaderboard-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // Удаляем активный класс у всех кнопок фильтра
+            document.querySelectorAll('.leaderboard-filter-btn').forEach(b => b.classList.remove('active'));
+            
+            // Добавляем активный класс текущей кнопке
+            this.classList.add('active');
+            
+            // Применяем фильтр
+            const filter = this.getAttribute('data-filter');
+            if (typeof renderLeaderboard === 'function') {
+                renderLeaderboard(filter);
+            }
+            
+            // Звук клика
+            if (typeof playSound === 'function') {
+                playSound('click');
+            }
+            
+            if (typeof vibrate === 'function') {
+                vibrate(30);
+            }
+        });
+    });
+}
+
+// Добавление стилей для рейтинга
+function addLeaderboardStyles() {
+    // Проверяем, добавлены ли уже стили
+    if (document.getElementById('leaderboard-styles')) {
+        return;
+    }
+    
+    // Создаем элемент стилей
+    const styleElement = document.createElement('style');
+    styleElement.id = 'leaderboard-styles';
+    styleElement.textContent = `
+        /* Стили для табов в разделе друзей */
+        .friends-tabs {
+            display: flex;
+            border-bottom: 2px solid #FFD000;
+            margin-bottom: 15px;
+        }
+        
+        .friends-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            background-color: #FFDC4A;
+            transition: all 0.3s;
+            border-radius: 8px 8px 0 0;
+            margin-right: 2px;
+            font-weight: bold;
+        }
+        
+        .friends-tab.active {
+            background-color: #FFD000;
+            box-shadow: 0 -3px 5px rgba(0,0,0,0.1);
+        }
+        
+        .friends-tab:hover {
+            background-color: #FFD700;
+            transform: translateY(-2px);
+        }
+        
+        /* Стили для содержимого табов */
+        .friends-content {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .friends-content.active {
+            display: block;
+        }
+        
+        /* Стили для фильтров в рейтинге */
+        .leaderboard-filter {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        
+        .leaderboard-filter-btn {
+            padding: 8px 15px;
+            background-color: #FFDC4A;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .leaderboard-filter-btn.active {
+            background-color: #FF8C00;
+            color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .leaderboard-filter-btn:hover:not(.active) {
+            background-color: #FFD700;
+            transform: translateY(-2px);
+        }
+        
+        /* Стили для списка лидеров */
+        .leaderboard-list {
+            background-color: #FFDC4A;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #FFD000;
+            position: relative;
+            transition: all 0.2s;
+        }
+        
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+        
+        .leaderboard-item:hover {
+            background-color: rgba(255, 215, 0, 0.2);
+        }
+        
+        /* Стили для ранга в рейтинге */
+        .leaderboard-rank {
+            font-weight: bold;
+            font-size: 18px;
+            width: 30px;
+            text-align: center;
+            margin-right: 10px;
+        }
+        
+        .rank-1 {
+            color: #FFD700; /* Золото */
+        }
+        
+        .rank-2 {
+            color: #C0C0C0; /* Серебро */
+        }
+        
+        .rank-3 {
+            color: #CD7F32; /* Бронза */
+        }
+        
+        /* Стили для аватаров */
+        .leaderboard-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 15px;
+            background-color: #FF8C00;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 2px solid #FFD000;
+            overflow: hidden;
+        }
+        
+        /* Стили для информации о пользователе */
+        .leaderboard-user-info {
+            flex: 1;
+        }
+        
+        .leaderboard-username {
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+        
+        .leaderboard-level {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Стили для отображения очков */
+        .leaderboard-score {
+            margin-left: auto;
+            font-weight: bold;
+            text-align: right;
+        }
+        
+        .leaderboard-score-value {
+            font-size: 18px;
+            color: #FF8C00;
+        }
+        
+        .leaderboard-score-label {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Стили для индикации загрузки */
+        .leaderboard-loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        /* Стили для информации о рейтинге */
+        .leaderboard-info {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Стили для выделения текущего пользователя */
+        .leaderboard-me {
+            background-color: rgba(255, 140, 0, 0.2);
+        }
+        
+        .leaderboard-me::after {
+            content: "Вы";
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background-color: #FF8C00;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+        }
+        
+        /* Стили для темной темы */
+        .dark-theme .friends-tab {
+            background-color: #444;
+            color: #fff;
+        }
+        
+        .dark-theme .friends-tab.active {
+            background-color: #555;
+        }
+        
+        .dark-theme .leaderboard-filter-btn {
+            background-color: #444;
+            color: #fff;
+        }
+        
+        .dark-theme .leaderboard-filter-btn.active {
+            background-color: #FF8C00;
+        }
+        
+        .dark-theme .leaderboard-list {
+            background-color: #444;
+        }
+        
+        .dark-theme .leaderboard-item {
+            border-color: #555;
+        }
+        
+        .dark-theme .leaderboard-username {
+            color: #fff;
+        }
+        
+        .dark-theme .leaderboard-level {
+            color: #ccc;
+        }
+        
+        .dark-theme .leaderboard-score-label {
+            color: #ccc;
+        }
+        
+        .dark-theme .leaderboard-loading,
+        .dark-theme .leaderboard-info {
+            color: #ccc;
+        }
+        
+        .dark-theme .leaderboard-me {
+            background-color: rgba(255, 140, 0, 0.1);
+        }
+        
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+    `;
+    
+    document.head.appendChild(styleElement);
+    console.log("Стили для рейтинга добавлены");
+}
+
+// Функция получения данных рейтинга
+function fetchLeaderboardData(forceUpdate = false) {
+    console.log("Запрос данных рейтинга");
+    
+    // Отображаем индикатор загрузки
+    const leaderboardList = document.querySelector('.leaderboard-list');
+    if (leaderboardList) {
+        leaderboardList.innerHTML = '<div class="leaderboard-loading">Загрузка рейтинга...</div>';
+    }
+    
+    // Проверяем, не обновляли ли мы данные недавно и нет ли принудительного обновления
+    if (!forceUpdate && window.leaderboardData && window.leaderboardData.lastUpdate && 
+        Date.now() - window.leaderboardData.lastUpdate < 5 * 60 * 1000) { // 5 минут
+        console.log('Используем кешированные данные рейтинга');
+        renderLeaderboard(document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') || 'global');
+        return;
+    }
+    
+    // Пытаемся получить данные через TagManager
+    if (window.TagManager && window.TagManager.leaderboard) {
+        window.TagManager.leaderboard.requestLeaderboardData();
+        return;
+    }
+    
+    // Если TagManager недоступен, используем тестовые данные
+    setTimeout(() => {
+        handleLeaderboardData(generateTestLeaderboardData());
+    }, 1500);
+}
+
+// Обработка полученных данных рейтинга
+function handleLeaderboardData(data) {
+    console.log("Обработка данных рейтинга");
+    
+    // Сохраняем данные
+    window.leaderboardData = {
+        ...data,
+        lastUpdate: Date.now()
+    };
+    
+    // Рендерим рейтинг
+    renderLeaderboard(document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') || 'global');
+    
+    // Обновляем время последнего обновления
+    const leaderboardInfo = document.querySelector('.leaderboard-info p');
+    if (leaderboardInfo) {
+        leaderboardInfo.textContent = `Обновлено: ${new Date().toLocaleTimeString()}`;
+    }
+}
+
+// Отображение рейтинга в интерфейсе
+function renderLeaderboard(filter = 'global') {
+    console.log(`Отображение рейтинга: ${filter}`);
+    
+    const leaderboardList = document.querySelector('.leaderboard-list');
+    if (!leaderboardList) return;
+    
+    // Проверяем наличие данных
+    if (!window.leaderboardData || !window.leaderboardData[filter]) {
+        leaderboardList.innerHTML = '<div class="leaderboard-loading">Нет данных рейтинга</div>';
+        return;
+    }
+    
+    // Выбираем данные в зависимости от фильтра
+    const data = window.leaderboardData[filter];
+    
+    if (data.length === 0) {
+        leaderboardList.innerHTML = `<div class="leaderboard-loading">Рейтинг ${filter === 'global' ? 'глобальный' : 'друзей'} пуст</div>`;
+        return;
+    }
+    
+    // Формируем HTML для списка лидеров
+    let html = '';
+    
+    data.forEach((item, index) => {
+        const rankClass = index < 3 ? `rank-${index + 1}` : '';
+        const isMe = item.isMe;
+        
+        html += `
+            <div class="leaderboard-item ${isMe ? 'leaderboard-me' : ''}">
+                <div class="leaderboard-rank ${rankClass}">${index + 1}</div>
+                <div class="leaderboard-avatar" style="background-image: url('${item.avatar || `https://i.pravatar.cc/150?img=${(item.id % 70) || 1}`}')"></div>
+                <div class="leaderboard-user-info">
+                    <div class="leaderboard-username">${item.username}</div>
+                    <div class="leaderboard-level">Уровень: ${item.level}</div>
+                </div>
+                <div class="leaderboard-score">
+                    <div class="leaderboard-score-value">${item.score.toLocaleString()}</div>
+                    <div class="leaderboard-score-label">бананов</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    leaderboardList.innerHTML = html;
+}
+
+// Генерация тестовых данных для рейтинга (для демонстрации)
+function generateTestLeaderboardData() {
+    const currentUserName = getCurrentUserName();
+    const currentUserId = getCurrentUserId();
+    
+    // Глобальный рейтинг
+    const globalLeaderboard = [];
+    for (let i = 0; i < 20; i++) {
+        globalLeaderboard.push({
+            id: i === 7 ? currentUserId : 1000 + i,
+            username: i === 0 ? 'MinionsKing' : i === 1 ? 'BananaHunter' : i === 7 ? currentUserName : `Player${1000 + i}`,
+            level: Math.floor(Math.random() * 10) + 10,
+            score: Math.floor(Math.random() * 50000) + 10000,
+            isMe: i === 7
+        });
+    }
+    
+    // Сортируем по убыванию очков
+    globalLeaderboard.sort((a, b) => b.score - a.score);
+    
+    // Рейтинг друзей
+    const friendsLeaderboard = [
+        {
+            id: currentUserId,
+            username: currentUserName,
+            level: window.gameState?.level || 1,
+            score: window.gameState?.totalBananas || 1000,
+            isMe: true
+        }
+    ];
+    
+    // Добавляем несколько друзей
+    const friendIndices = [0, 2, 5, 9, 12];
+    friendIndices.forEach(index => {
+        if (globalLeaderboard[index] && !globalLeaderboard[index].isMe) {
+            const friend = { ...globalLeaderboard[index], isMe: false };
+            friendsLeaderboard.push(friend);
+        }
+    });
+    
+    // Сортируем друзей по убыванию очков
+    friendsLeaderboard.sort((a, b) => b.score - a.score);
+    
+    return {
+        global: globalLeaderboard,
+        friends: friendsLeaderboard,
+        lastUpdate: Date.now()
+    };
+}
+
+// Получение имени текущего пользователя
+function getCurrentUserName() {
+    // Пробуем получить имя из Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp && 
+        window.Telegram.WebApp.initDataUnsafe && 
+        window.Telegram.WebApp.initDataUnsafe.user) {
+        
+        const user = window.Telegram.WebApp.initDataUnsafe.user;
+        return user.first_name || 'Миньон';
+    }
+    
+    // Пробуем получить имя из TagManager
+    if (window.TagManager && window.TagManager.getUserData) {
+        const userData = window.TagManager.getUserData();
+        if (userData && userData.first_name) {
+            return userData.first_name;
+        }
+    }
+    
+    // Возвращаем имя по умолчанию
+    return 'Миньон';
+}
+
+// Получение ID текущего пользователя
+function getCurrentUserId() {
+    // Пробуем получить ID из Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp && 
+        window.Telegram.WebApp.initDataUnsafe && 
+        window.Telegram.WebApp.initDataUnsafe.user) {
+        
+        const user = window.Telegram.WebApp.initDataUnsafe.user;
+        return user.id || 1001;
+    }
+    
+    // Пробуем получить ID из TagManager
+    if (window.TagManager && window.TagManager.getUserData) {
+        const userData = window.TagManager.getUserData();
+        if (userData && userData.id) {
+            return userData.id;
+        }
+    }
+    
+    // Возвращаем ID по умолчанию
+    return 1001;
+}
+
+// Функция обновления нашего прогресса в рейтинге
+function updateLeaderboardProgress() {
+    // Проверяем доступность объекта window.leaderboardData
+    if (window.leaderboardData) {
+        // Обновляем данные текущего пользователя
+        const updatePlayerData = (data) => {
+            if (!data) return;
+            
+            const currentUser = data.find(item => item.isMe);
+            if (currentUser) {
+                currentUser.level = window.gameState.level || 1;
+                currentUser.score = window.gameState.totalBananas || 0;
+            }
+        };
+        
+        // Обновляем данные в обоих рейтингах
+        updatePlayerData(window.leaderboardData.global);
+        updatePlayerData(window.leaderboardData.friends);
+        
+        // Пересортировка данных
+        if (window.leaderboardData.global) {
+            window.leaderboardData.global.sort((a, b) => b.score - a.score);
+        }
+        
+        if (window.leaderboardData.friends) {
+            window.leaderboardData.friends.sort((a, b) => b.score - a.score);
+        }
+        
+        // Обновляем отображение, если рейтинг открыт
+        if (document.getElementById('leaderboard-tab-content')?.classList.contains('active')) {
+            renderLeaderboard(document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') || 'global');
+        }
+    }
+}
+
+// Обработчик события от Telegram WebApp для обновления рейтинга
+if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.onEvent('viewportChanged', function() {
+        // Проверяем, открыт ли рейтинг
+        if (document.getElementById('leaderboard-tab-content')?.classList.contains('active') && 
+            (!window.leaderboardData || !window.leaderboardData.lastUpdate || 
+             Date.now() - window.leaderboardData.lastUpdate > 5 * 60 * 1000)) {
+            // Обновляем данные рейтинга
+            fetchLeaderboardData();
+        }
+    });
+}
+
+// Интеграция с документом
+document.addEventListener('DOMContentLoaded', function() {
+    // Инициализируем рейтинг после загрузки документа
+    setTimeout(initializeLeaderboard, 2000);
+    
+    // Добавляем обработчик для обновления рейтинга при изменении игрового прогресса
+    window.addEventListener('gameStateUpdated', function() {
+        updateLeaderboardProgress();
+    });
+});
+
+// Добавляем перехват существующих функций для интеграции рейтинга
+// Расширяем функцию saveGameState для обновления рейтинга
+const originalSaveGameState = window.saveGameState || function() {};
+window.saveGameState = function() {
+    // Вызываем оригинальную функцию
+    originalSaveGameState.apply(this, arguments);
+    
+    // Отправляем событие обновления игрового прогресса
+    window.dispatchEvent(new CustomEvent('gameStateUpdated'));
+    
+    // Обновляем рейтинг
+    updateLeaderboardProgress();
+};
+
