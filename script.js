@@ -5044,3 +5044,1134 @@ window.saveGameState = function() {
     updateLeaderboardProgress();
 };
 
+// Конфигурация для работы с сервером рейтинга
+const LeaderboardConfig = {
+  // Базовый URL API сервера рейтинга
+  apiUrl: 'https://minions-game-server.example.com/api',
+  // Интервал автоматического обновления данных рейтинга (в миллисекундах)
+  updateInterval: 5 * 60 * 1000, // 5 минут
+  // Интервал отправки обновлений счета (в миллисекундах)
+  scoreUpdateInterval: 60 * 1000, // 1 минута
+  // Минимальная задержка между обновлениями счета (для предотвращения спама)
+  minScoreUpdateDelay: 10 * 1000, // 10 секунд
+  // Флаг для включения локального режима (без отправки данных на сервер)
+  localMode: false
+};
+
+// Объект для работы с рейтингом лидеров
+const LeaderboardManager = {
+  // Данные рейтинга
+  data: {
+    global: [], // Глобальный рейтинг
+    friends: [], // Рейтинг друзей
+    lastUpdate: null, // Время последнего обновления
+    myPosition: null, // Позиция текущего игрока в глобальном рейтинге
+    myFriendsPosition: null // Позиция текущего игрока в рейтинге друзей
+  },
+  
+  // Флаг для отслеживания процесса загрузки данных
+  isLoading: false,
+  
+  // Таймер для автоматического обновления
+  updateTimer: null,
+  
+  // Таймер для отправки обновлений счета
+  scoreUpdateTimer: null,
+  
+  // Время последнего обновления счета
+  lastScoreUpdate: 0,
+  
+  // Инициализация менеджера рейтинга
+  init: function() {
+    console.log('Инициализация LeaderboardManager');
+    
+    // Отменяем существующие таймеры, если они есть
+    if (this.updateTimer) {
+      clearInterval(this.updateTimer);
+    }
+    
+    if (this.scoreUpdateTimer) {
+      clearInterval(this.scoreUpdateTimer);
+    }
+    
+    // Загружаем данные рейтинга
+    this.fetchLeaderboardData();
+    
+    // Устанавливаем таймер для автоматического обновления
+    this.updateTimer = setInterval(() => {
+      this.fetchLeaderboardData();
+    }, LeaderboardConfig.updateInterval);
+    
+    // Устанавливаем таймер для отправки обновлений счета
+    this.scoreUpdateTimer = setInterval(() => {
+      this.updatePlayerScore();
+    }, LeaderboardConfig.scoreUpdateInterval);
+    
+    // Добавляем обработчик события для обновления рейтинга при изменении игрового состояния
+    window.addEventListener('gameStateUpdated', () => {
+      this.checkForScoreUpdate();
+    });
+    
+    return this;
+  },
+  
+  // Получение данных рейтинга с сервера
+  fetchLeaderboardData: async function(forceUpdate = false) {
+    // Проверяем, не загружаем ли мы уже данные
+    if (this.isLoading) {
+      console.log('Загрузка данных рейтинга уже выполняется');
+      return;
+    }
+    
+    // Проверяем, не обновляли ли мы данные недавно и нет ли принудительного обновления
+    if (!forceUpdate && this.data.lastUpdate && 
+        Date.now() - this.data.lastUpdate < LeaderboardConfig.minScoreUpdateDelay) {
+      console.log('Слишком частые запросы на обновление рейтинга');
+      return;
+    }
+    
+    this.isLoading = true;
+    
+    try {
+      // Отправляем событие о начале загрузки данных
+      document.dispatchEvent(new CustomEvent('leaderboardDataLoading'));
+      
+      // Если используется локальный режим, генерируем тестовые данные
+      if (LeaderboardConfig.localMode) {
+        setTimeout(() => {
+          const testData = this.generateTestData();
+          this.handleLeaderboardData(testData);
+          this.isLoading = false;
+        }, 1000);
+        return;
+      }
+      
+      // Получаем данные через Telegram WebApp
+      if (window.TagManager && window.TagManager.leaderboard) {
+        window.TagManager.leaderboard.requestLeaderboardData();
+        
+        // Устанавливаем таймаут на случай, если данные не придут
+        setTimeout(() => {
+          if (this.isLoading) {
+            console.warn('Таймаут ожидания данных от Telegram WebApp');
+            // Используем тестовые данные в случае таймаута
+            const testData = this.generateTestData();
+            this.handleLeaderboardData(testData);
+            this.isLoading = false;
+          }
+        }, 5000);
+        
+        return;
+      }
+      
+      // Если нет доступа к Telegram WebApp, делаем прямой запрос к API
+      try {
+        // Получаем глобальный рейтинг
+        const globalResponse = await fetch(`${LeaderboardConfig.apiUrl}/leaderboard`);
+        if (!globalResponse.ok) {
+          throw new Error(`Ошибка при получении глобального рейтинга: ${globalResponse.status}`);
+        }
+        const globalData = await globalResponse.json();
+        
+        // Получаем рейтинг друзей
+        const userId = this.getCurrentUserId();
+        const friendsResponse = await fetch(`${LeaderboardConfig.apiUrl}/leaderboard/friends/${userId}`);
+        if (!friendsResponse.ok) {
+          throw new Error(`Ошибка при получении рейтинга друзей: ${friendsResponse.status}`);
+        }
+        const friendsData = await friendsResponse.json();
+        
+        // Обрабатываем полученные данные
+        this.handleLeaderboardData({
+          global: globalData.global,
+          friends: friendsData.friends,
+          timestamp: Date.now()
+        });
+      } catch (error) {
+        console.error('Ошибка при получении данных рейтинга:', error);
+        // Используем тестовые данные в случае ошибки
+        const testData = this.generateTestData();
+        this.handleLeaderboardData(testData);
+      }
+    } finally {
+      this.isLoading = false;
+    }
+  },
+  
+  // Обработка полученных данных рейтинга
+  handleLeaderboardData: function(data) {
+    console.log('Получены данные рейтинга:', data);
+    
+    // Сохраняем данные
+    this.data.global = data.global || [];
+    this.data.friends = data.friends || [];
+    this.data.lastUpdate = data.timestamp || Date.now();
+    
+    // Определяем позицию текущего игрока в рейтингах
+    const userId = this.getCurrentUserId();
+    this.data.myPosition = this.data.global.findIndex(player => 
+      player.id.toString() === userId.toString()
+    ) + 1;
+    
+    this.data.myFriendsPosition = this.data.friends.findIndex(player => 
+      player.id.toString() === userId.toString()
+    ) + 1;
+    
+    // Отмечаем текущего пользователя
+    this.data.global.forEach(player => {
+      player.isMe = player.id.toString() === userId.toString();
+    });
+    
+    this.data.friends.forEach(player => {
+      player.isMe = player.id.toString() === userId.toString();
+    });
+    
+    // Отправляем событие об обновлении данных
+    document.dispatchEvent(new CustomEvent('leaderboardDataUpdated', {
+      detail: { data: this.data }
+    }));
+    
+    // Обновляем отображение рейтинга, если он открыт
+    this.updateLeaderboardUI();
+    
+    return this.data;
+  },
+  
+  // Обновление интерфейса рейтинга
+  updateLeaderboardUI: function() {
+    // Проверяем, открыт ли рейтинг
+    const leaderboardTab = document.getElementById('leaderboard-tab-content');
+    if (!leaderboardTab || !leaderboardTab.classList.contains('active')) {
+      return;
+    }
+    
+    // Определяем текущий фильтр
+    const activeFilter = document.querySelector('.leaderboard-filter-btn.active')?.getAttribute('data-filter') || 'global';
+    
+    // Вызываем функцию отображения рейтинга
+    if (typeof renderLeaderboard === 'function') {
+      renderLeaderboard(activeFilter === 'global' ? this.data.global : this.data.friends);
+    }
+  },
+  
+  // Генерация тестовых данных для рейтинга
+  generateTestData: function() {
+    const userId = this.getCurrentUserId();
+    const userName = this.getCurrentUserName();
+    
+    // Генерируем глобальный рейтинг
+    const globalLeaderboard = [];
+    for (let i = 0; i < 20; i++) {
+      globalLeaderboard.push({
+        id: i === 7 ? userId : 1000 + i,
+        username: i === 0 ? "MinionsKing" : i === 1 ? "BananaHunter" : i === 7 ? userName : `Player${1000 + i}`,
+        level: Math.floor(Math.random() * 10) + 10,
+        score: Math.floor(Math.random() * 50000) + 10000,
+        isMe: i === 7
+      });
+    }
+    
+    // Сортировка по убыванию очков
+    globalLeaderboard.sort((a, b) => b.score - a.score);
+    
+    // Генерируем рейтинг друзей
+    const friendsLeaderboard = [
+      {
+        id: userId,
+        username: userName,
+        level: window.gameState?.level || 5,
+        score: window.gameState?.totalBananas || 5000,
+        isMe: true
+      }
+    ];
+    
+    // Добавляем случайных друзей
+    const friendIndices = [0, 2, 5, 9, 12];
+    friendIndices.forEach(index => {
+      if (globalLeaderboard[index] && !globalLeaderboard[index].isMe) {
+        const friend = { ...globalLeaderboard[index], isMe: false };
+        friendsLeaderboard.push(friend);
+      }
+    });
+    
+    // Сортировка друзей по убыванию очков
+    friendsLeaderboard.sort((a, b) => b.score - a.score);
+    
+    return {
+      global: globalLeaderboard,
+      friends: friendsLeaderboard,
+      timestamp: Date.now()
+    };
+  },
+  
+  // Получение ID текущего пользователя
+  getCurrentUserId: function() {
+    // Пробуем получить ID из Telegram WebApp
+    if (window.TagManager && window.TagManager.userData && window.TagManager.userData.id) {
+      return window.TagManager.userData.id;
+    }
+    
+    // Пробуем получить ID из локального хранилища
+    const savedUserId = localStorage.getItem('minionsGame_userId');
+    if (savedUserId) {
+      return savedUserId;
+    }
+    
+    // Генерируем случайный ID для тестового режима
+    const randomId = Math.floor(Math.random() * 1000000);
+    localStorage.setItem('minionsGame_userId', randomId);
+    return randomId;
+  },
+  
+  // Получение имени текущего пользователя
+  getCurrentUserName: function() {
+    // Пробуем получить имя из Telegram WebApp
+    if (window.TagManager && window.TagManager.userData) {
+      if (window.TagManager.userData.username) {
+        return window.TagManager.userData.username;
+      }
+      if (window.TagManager.userData.first_name) {
+        return window.TagManager.userData.first_name;
+      }
+    }
+    
+    // Пробуем получить имя из локального хранилища
+    const savedUserName = localStorage.getItem('minionsGame_userName');
+    if (savedUserName) {
+      return savedUserName;
+    }
+    
+    // Возвращаем стандартное имя для тестового режима
+    return "Тестовый Игрок";
+  },
+  
+  // Проверка необходимости обновления счета
+  checkForScoreUpdate: function() {
+    // Проверяем, прошло ли достаточно времени с последнего обновления
+    if (Date.now() - this.lastScoreUpdate < LeaderboardConfig.minScoreUpdateDelay) {
+      return;
+    }
+    
+    // Обновляем счет
+    this.updatePlayerScore();
+  },
+  
+  // Обновление счета игрока на сервере
+  updatePlayerScore: function() {
+    // Проверяем, есть ли игровое состояние
+    if (!window.gameState) {
+      return;
+    }
+    
+    // Проверяем, прошло ли достаточно времени с последнего обновления
+    if (Date.now() - this.lastScoreUpdate < LeaderboardConfig.minScoreUpdateDelay) {
+      return;
+    }
+    
+    // Обновляем время последнего обновления
+    this.lastScoreUpdate = Date.now();
+    
+    // Если используется локальный режим, просто обновляем локальные данные
+    if (LeaderboardConfig.localMode) {
+      this.updateLocalScore();
+      return;
+    }
+    
+    // Отправляем данные через Telegram WebApp
+    if (window.TagManager && window.TagManager.leaderboard) {
+      window.TagManager.leaderboard.updateCurrentUserData();
+      return;
+    }
+    
+    // Если нет доступа к Telegram WebApp, отправляем данные напрямую на сервер
+    this.sendScoreToServer();
+  },
+  
+  // Обновление локального счета (для тестового режима)
+  updateLocalScore: function() {
+    if (!window.gameState) return;
+    
+    // Обновляем данные в локальных списках
+    const updateInList = (list) => {
+      if (!list || !Array.isArray(list)) return;
+      
+      const userId = this.getCurrentUserId();
+      const currentUser = list.find(player => player.id.toString() === userId.toString());
+      
+      if (currentUser) {
+        currentUser.level = window.gameState.level || 1;
+        currentUser.score = window.gameState.totalBananas || 0;
+        
+        // Пересортировка списка
+        list.sort((a, b) => b.score - a.score);
+      }
+    };
+    
+    // Обновляем в обоих списках
+    updateInList(this.data.global);
+    updateInList(this.data.friends);
+    
+    // Отправляем событие об обновлении данных
+    document.dispatchEvent(new CustomEvent('leaderboardDataUpdated', {
+      detail: { data: this.data }
+    }));
+    
+    // Обновляем отображение
+    this.updateLeaderboardUI();
+  },
+  
+  // Отправка счета на сервер
+  sendScoreToServer: async function() {
+    if (!window.gameState) return;
+    
+    try {
+      const userId = this.getCurrentUserId();
+      const userName = this.getCurrentUserName();
+      
+      const scoreData = {
+        userId: userId,
+        username: userName,
+        level: window.gameState.level || 1,
+        score: window.gameState.totalBananas || 0,
+        timestamp: Date.now()
+      };
+      
+      // Отправляем данные на сервер
+      const response = await fetch(`${LeaderboardConfig.apiUrl}/leaderboard/update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(scoreData)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка при отправке счета: ${response.status}`);
+      }
+      
+      console.log('Счет успешно отправлен на сервер');
+      
+      // Запрашиваем обновленные данные рейтинга
+      this.fetchLeaderboardData(true);
+    } catch (error) {
+      console.error('Ошибка при отправке счета на сервер:', error);
+    }
+  }
+};
+
+// Инициализация LeaderboardManager при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+  // Инициализируем менеджер рейтинга
+  LeaderboardManager.init();
+  
+  // Добавляем обработчик для обновления рейтинга при переключении на вкладку
+  document.querySelectorAll('.leaderboard-tab-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      // Проверяем, нужно ли обновить данные
+      if (!LeaderboardManager.data.lastUpdate || 
+          Date.now() - LeaderboardManager.data.lastUpdate > LeaderboardConfig.updateInterval) {
+        LeaderboardManager.fetchLeaderboardData(true);
+      } else {
+        LeaderboardManager.updateLeaderboardUI();
+      }
+    });
+  });
+  
+  // Добавляем обработчик для кнопки обновления рейтинга
+  const refreshButton = document.getElementById('leaderboard-refresh-btn');
+  if (refreshButton) {
+    refreshButton.addEventListener('click', function() {
+      LeaderboardManager.fetchLeaderboardData(true);
+    });
+  }
+  
+  // Добавляем обработчик для фильтров рейтинга
+  document.querySelectorAll('.leaderboard-filter-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      // Удаляем активный класс у всех кнопок
+      document.querySelectorAll('.leaderboard-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      // Добавляем активный класс текущей кнопке
+      this.classList.add('active');
+      
+      // Обновляем отображение рейтинга
+      LeaderboardManager.updateLeaderboardUI();
+    });
+  });
+});
+
+// ========== УЛУЧШЕННАЯ СИСТЕМА СОХРАНЕНИЯ ==========
+
+// Улучшенная функция сохранения прогресса
+function saveGameState() {
+    try {
+        // Добавим метку времени сохранения
+        gameState.lastSaveTime = Date.now();
+        
+        // Преобразуем gameState в строку
+        const gameStateJSON = JSON.stringify(gameState);
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('minionsGameState', gameStateJSON);
+        
+        console.log("Состояние игры сохранено в localStorage:", new Date().toLocaleTimeString());
+        
+        // Сохранение успешно - можно добавить дополнительную обратную связь
+        return true;
+    } catch (e) {
+        console.error('Ошибка при сохранении игрового состояния:', e);
+        
+        // В случае ошибки - можно добавить запасной вариант сохранения
+        // Например, сохранить только ключевые параметры
+        try {
+            const minimalState = {
+                bananas: gameState.bananas,
+                stars: gameState.stars,
+                level: gameState.level,
+                totalBananas: gameState.totalBananas
+            };
+            localStorage.setItem('minionsGameState_backup', JSON.stringify(minimalState));
+            console.log("Сохранено минимальное состояние игры");
+        } catch (backupError) {
+            console.error('Не удалось создать резервную копию:', backupError);
+        }
+        
+        return false;
+    }
+}
+
+// Улучшенная функция загрузки прогресса
+function loadGameState() {
+    try {
+        // Пытаемся загрузить основные данные
+        const savedState = localStorage.getItem('minionsGameState');
+        
+        if (savedState) {
+            try {
+                const parsed = JSON.parse(savedState);
+                
+                // Проверяем корректность данных
+                if (parsed && typeof parsed === 'object') {
+                    // Объединяем загруженные данные с базовым состоянием
+                    // для случая, если в gameState появились новые поля
+                    gameState = {...gameState, ...parsed};
+                    
+                    console.log("Состояние игры успешно загружено из localStorage");
+                    
+                    // Проверка на ежедневный вход
+                    checkDailyLogin();
+                    
+                    // Принудительное обновление UI
+                    updateStats();
+                    updateTaskProgress();
+                    
+                    return true;
+                } else {
+                    throw new Error("Некорректный формат сохраненных данных");
+                }
+            } catch (parseError) {
+                console.error("Ошибка при разборе сохраненных данных:", parseError);
+                
+                // Пробуем загрузить резервную копию
+                return loadBackupState();
+            }
+        } else {
+            console.log("Сохраненные данные не найдены, начинаем новую игру");
+            return false;
+        }
+    } catch (e) {
+        console.error('Ошибка при загрузке сохраненных данных:', e);
+        return loadBackupState();
+    }
+}
+
+// Загрузка резервной копии
+function loadBackupState() {
+    try {
+        const backupState = localStorage.getItem('minionsGameState_backup');
+        if (backupState) {
+            const parsed = JSON.parse(backupState);
+            if (parsed && typeof parsed === 'object') {
+                gameState = {...gameState, ...parsed};
+                console.log("Загружены данные из резервной копии");
+                return true;
+            }
+        }
+    } catch (e) {
+        console.error('Ошибка при загрузке резервной копии:', e);
+    }
+    return false;
+}
+
+// Добавляем автосохранение каждые 60 секунд
+let autoSaveInterval;
+function startAutoSave() {
+    // Останавливаем предыдущий интервал, если был
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+    }
+    
+    // Запускаем новый интервал
+    autoSaveInterval = setInterval(() => {
+        saveGameState();
+    }, 60000); // Сохранение каждую минуту
+    
+    console.log("Автосохранение запущено");
+}
+
+// Функция для инициализации системы сохранения
+function initSaveSystem() {
+    loadGameState();
+    startAutoSave();
+    
+    // Добавляем сохранение при уходе со страницы
+    window.addEventListener('beforeunload', saveGameState);
+    
+    // Добавляем сохранение при сворачивании приложения (для мобильных)
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.onEvent('viewportChanged', () => {
+            if (window.Telegram.WebApp.isExpanded === false) {
+                saveGameState();
+            }
+        });
+    }
+}
+
+// ========== ИСПРАВЛЕНИЕ СИСТЕМЫ БОКСОВ ==========
+
+// Улучшенная функция открытия бокса
+function openBox(type) {
+    console.log("Попытка открытия бокса:", type);
+    
+    // Проверяем наличие типа бокса
+    if (!type) {
+        console.error("Не указан тип бокса");
+        showPopup('Ошибка: неизвестный тип бокса');
+        return false;
+    }
+    
+    // Определяем стоимость в зависимости от типа
+    let cost = 0;
+    switch(type) {
+        case 'simple': cost = 10; break;
+        case 'standard': cost = 25; break;
+        case 'premium': cost = 50; break;
+        case 'mega': cost = 100; break;
+        case 'special': cost = 75; break;
+        default:
+            console.error("Неизвестный тип бокса:", type);
+            showPopup('Ошибка: неизвестный тип бокса');
+            return false;
+    }
+    
+    // Проверяем, хватает ли бананов
+    if (gameState.bananas < cost) {
+        console.log("Недостаточно бананов для открытия бокса");
+        showPopup(`Недостаточно бананов! Нужно ${cost} 🍌`);
+        playSound('minionShocked');
+        return false;
+    }
+    
+    // Списываем бананы
+    gameState.bananas -= cost;
+    
+    // Определяем награду
+    let reward;
+    switch(type) {
+        case 'simple':
+            // 70% шанс на бананы (5-15), 30% шанс на опыт (5-10)
+            if (Math.random() < 0.7) {
+                const bananas = Math.floor(Math.random() * 11) + 5;
+                gameState.bananas += bananas;
+                gameState.totalBananas += bananas;
+                reward = { type: 'bananas', amount: bananas, text: `+${bananas} бананов` };
+            } else {
+                const exp = Math.floor(Math.random() * 6) + 5;
+                addExperience(exp);
+                reward = { type: 'exp', amount: exp, text: `+${exp} опыта` };
+            }
+            break;
+            
+        case 'standard':
+            // 60% шанс на бананы (15-30), 40% шанс на опыт (10-20)
+            if (Math.random() < 0.6) {
+                const bananas = Math.floor(Math.random() * 16) + 15;
+                gameState.bananas += bananas;
+                gameState.totalBananas += bananas;
+                reward = { type: 'bananas', amount: bananas, text: `+${bananas} бананов` };
+            } else {
+                const exp = Math.floor(Math.random() * 11) + 10;
+                addExperience(exp);
+                reward = { type: 'exp', amount: exp, text: `+${exp} опыта` };
+            }
+            break;
+            
+        case 'premium':
+            // Премиум награды
+            const premiumReward = Math.random();
+            if (premiumReward < 0.5) {
+                // 50% шанс на бананы (40-80)
+                const bananas = Math.floor(Math.random() * 41) + 40;
+                gameState.bananas += bananas;
+                gameState.totalBananas += bananas;
+                reward = { type: 'bananas', amount: bananas, text: `+${bananas} бананов` };
+            } else if (premiumReward < 0.85) {
+                // 35% шанс на опыт (20-40)
+                const exp = Math.floor(Math.random() * 21) + 20;
+                addExperience(exp);
+                reward = { type: 'exp', amount: exp, text: `+${exp} опыта` };
+            } else {
+                // 15% шанс на звезду
+                gameState.stars += 1;
+                gameState.totalStars += 1;
+                reward = { type: 'stars', amount: 1, text: `+1 звезда` };
+            }
+            
+            // Отмечаем задание на открытие премиум-кейса
+            if (gameState.taskProgress.task2 < 1) {
+                gameState.taskProgress.task2 = 1;
+                setTimeout(() => {
+                    completeTask(2);
+                }, 1000);
+            }
+            break;
+            
+        case 'mega':
+            // Мега награды
+            const megaReward = Math.random();
+            if (megaReward < 0.4) {
+                // 40% шанс на бананы (80-150)
+                const bananas = Math.floor(Math.random() * 71) + 80;
+                gameState.bananas += bananas;
+                gameState.totalBananas += bananas;
+                reward = { type: 'bananas', amount: bananas, text: `+${bananas} бананов` };
+            } else if (megaReward < 0.7) {
+                // 30% шанс на опыт (40-80)
+                const exp = Math.floor(Math.random() * 41) + 40;
+                addExperience(exp);
+                reward = { type: 'exp', amount: exp, text: `+${exp} опыта` };
+            } else if (megaReward < 0.9) {
+                // 20% шанс на звезды (2-3)
+                const stars = Math.floor(Math.random() * 2) + 2;
+                gameState.stars += stars;
+                gameState.totalStars += stars;
+                reward = { type: 'stars', amount: stars, text: `+${stars} звезды` };
+            } else {
+                // 10% шанс на джекпот - все виды наград
+                const bananas = 100;
+                const exp = 50;
+                const stars = 1;
+                gameState.bananas += bananas;
+                gameState.totalBananas += bananas;
+                gameState.stars += stars;
+                gameState.totalStars += stars;
+                addExperience(exp);
+                reward = { type: 'jackpot', text: `ДЖЕКПОТ! +${bananas} бананов, +${exp} опыта, +${stars} звезда` };
+            }
+            break;
+            
+        case 'special':
+            // Специальные награды
+            const specialReward = Math.random();
+            if (specialReward < 0.3) {
+                // 30% шанс на бананы (60-120)
+                const bananas = Math.floor(Math.random() * 61) + 60;
+                gameState.bananas += bananas;
+                gameState.totalBananas += bananas;
+                reward = { type: 'bananas', amount: bananas, text: `+${bananas} бананов` };
+            } else if (specialReward < 0.6) {
+                // 30% шанс на опыт (30-60)
+                const exp = Math.floor(Math.random() * 31) + 30;
+                addExperience(exp);
+                reward = { type: 'exp', amount: exp, text: `+${exp} опыта` };
+            } else if (specialReward < 0.9) {
+                // 30% шанс на звезды (1-2)
+                const stars = Math.floor(Math.random() * 2) + 1;
+                gameState.stars += stars;
+                gameState.totalStars += stars;
+                reward = { type: 'stars', amount: stars, text: `+${stars} ${stars === 1 ? 'звезда' : 'звезды'}` };
+            } else {
+                // 10% шанс на бонус эффективности фермы
+                if (!gameState.farm) gameState.farm = { efficiency: 1.0 };
+                gameState.farm.efficiency += 0.2;
+                reward = { type: 'boost', text: `+20% к эффективности фермы!` };
+            }
+            break;
+    }
+    
+    // Увеличиваем счетчик открытых боксов
+    gameState.openedBoxes = (gameState.openedBoxes || 0) + 1;
+    
+    // Проверяем задание на открытие боксов
+    if (gameState.openedBoxes >= 5 && gameState.taskProgress.task5 < 1) {
+        gameState.taskProgress.task5 = 1;
+        setTimeout(() => {
+            completeTask(5);
+        }, 2000);
+    }
+    
+    // Обновляем статистику
+    updateStats();
+    saveGameState();
+    
+    // Показываем анимацию
+    showBoxAnimation(type, reward);
+    
+    // Воспроизводим звук
+    playSound('box');
+    vibrate([100, 50, 100]);
+    
+    return true;
+}
+
+// ========== ИСПРАВЛЕНИЕ СИСТЕМЫ ЗАДАНИЙ ==========
+
+// Обновленные данные для заданий (все награды в бананах)
+const tasksData = [
+    { id: 1, title: "Пригласи 10 друзей", reward: "+100 🍌", maxProgress: 10 },
+    { id: 2, title: "Открой премиум-кейс", reward: "+50 🍌", maxProgress: 1 },
+    { id: 3, title: "Накорми 5 миньонов", reward: "+20 🍌", maxProgress: 5 },
+    { id: 4, title: "Собери 30 бананов", reward: "+25 🍌", maxProgress: 30 },
+    { id: 5, title: "Открой 5 боксов", reward: "+40 🍌", maxProgress: 5 },
+    { id: 6, title: "Достигни 3 уровня", reward: "+60 🍌", maxProgress: 3 },
+    { id: 7, title: "Получи 5 достижений", reward: "+75 🍌", maxProgress: 5 },
+    { id: 8, title: "Серия входов 5 дней", reward: "+35 🍌", maxProgress: 5 },
+    { id: 9, title: "Собери 100 бананов", reward: "+50 🍌", maxProgress: 100 },
+    { id: 10, title: "Накопи 20 бананов в час", reward: "+100 🍌", maxProgress: 20 }
+];
+
+// ========== ИСПРАВЛЕНИЕ РАБОТЫ ПРОФИЛЯ ==========
+
+// Исправление функционала профиля
+function initProfile() {
+    console.log("Инициализация профиля пользователя");
+    
+    // Получаем данные пользователя из Telegram
+    let userName = "Игрок";
+    let userAvatar = null;
+    
+    if (window.Telegram && window.Telegram.WebApp) {
+        try {
+            // Пытаемся получить имя пользователя из Telegram
+            if (window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+                const user = window.Telegram.WebApp.initDataUnsafe.user;
+                userName = user.first_name || "Игрок";
+                
+                // Также можно было бы получить аватар, но Telegram WebApp не предоставляет такую возможность
+                // Вместо этого можно использовать псевдослучайный аватар на основе ID пользователя
+                if (user.id) {
+                    userAvatar = `https://i.pravatar.cc/300?img=${user.id % 70}`;
+                }
+            }
+        } catch (e) {
+            console.error("Ошибка при получении данных пользователя из Telegram:", e);
+        }
+    } else if (window.TagManager && window.TagManager.getUserData) {
+        try {
+            // Пытаемся получить имя пользователя из TagManager
+            const userData = window.TagManager.getUserData();
+            if (userData) {
+                userName = userData.first_name || userData.username || "Игрок";
+                
+                // Также можно было бы использовать ID для аватара
+                if (userData.id) {
+                    userAvatar = `https://i.pravatar.cc/300?img=${userData.id % 70}`;
+                }
+            }
+        } catch (e) {
+            console.error("Ошибка при получении данных пользователя из TagManager:", e);
+        }
+    }
+    
+    // Обновляем имя пользователя в профиле
+    const userNameElement = document.getElementById('user-name');
+    if (userNameElement) {
+        userNameElement.textContent = userName;
+    }
+    
+    // Обновляем аватар пользователя
+    const profileAvatar = document.querySelector('.profile-avatar');
+    if (profileAvatar && userAvatar) {
+        profileAvatar.style.backgroundImage = `url('${userAvatar}')`;
+    }
+    
+    // Обновляем статистику в профиле
+    updateProfileStats();
+    
+    // Добавляем обработчик клика для кнопки профиля на главном экране
+    const profileLink = document.querySelector('.profile-link');
+    if (profileLink) {
+        profileLink.addEventListener('click', function() {
+            console.log("Клик по кнопке профиля");
+            showSection('profile-section');
+            updateProfileStats();
+            
+            // Звуки и вибрация
+            if (typeof playSound === 'function') {
+                playSound('click');
+            }
+            
+            if (typeof vibrate === 'function') {
+                vibrate(30);
+            }
+        });
+    }
+    
+    // Добавляем CSS для выделения выполненных заданий
+    const style = document.createElement('style');
+    style.textContent = `
+        .completed-task {
+            background-color: rgba(76, 175, 80, 0.1) !important;
+            border-left: 3px solid #4CAF50 !important;
+        }
+        
+        .dark-theme .completed-task {
+            background-color: rgba(76, 175, 80, 0.2) !important;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    console.log("Профиль инициализирован");
+}
+
+// ========== ИСПРАВЛЕНИЕ ТАБЛИЦЫ ЛИДЕРОВ ==========
+
+// Исправление таблицы лидеров без сервера
+function initLeaderboard() {
+    console.log("Инициализация локальной таблицы лидеров");
+    
+    // Создаем глобальную переменную для данных лидерборда
+    window.leaderboardData = {
+        global: [],
+        friends: [],
+        lastUpdate: null
+    };
+    
+    // Находим блок для отображения таблицы лидеров
+    const leaderboardTabContent = document.getElementById('leaderboard-tab-content');
+    if (!leaderboardTabContent) {
+        console.error("Не найден блок для таблицы лидеров");
+        return;
+    }
+    
+    // Проверяем, есть ли необходимые элементы интерфейса
+    const leaderboardList = leaderboardTabContent.querySelector('.leaderboard-list');
+    const refreshButton = leaderboardTabContent.querySelector('#refresh-leaderboard');
+    
+    if (!leaderboardList) {
+        console.error("Не найден список для таблицы лидеров");
+        return;
+    }
+    
+    // Добавляем обработчик для кнопки обновления
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+            console.log("Обновление таблицы лидеров");
+            fetchLeaderboardData(true);
+            
+            // Звуки и вибрация
+            if (typeof playSound === 'function') {
+                playSound('click');
+            }
+            
+            if (typeof vibrate === 'function') {
+                vibrate([30, 50, 30]);
+            }
+        });
+    }
+    
+    // Инициализируем фильтры
+    const filterButtons = leaderboardTabContent.querySelectorAll('.leaderboard-filter-btn');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const filter = this.getAttribute('data-filter');
+            
+            // Отмечаем активный фильтр
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Отображаем соответствующие данные
+            renderLeaderboard(filter);
+            
+            // Звуки и вибрация
+            if (typeof playSound === 'function') {
+                playSound('click');
+            }
+            
+            if (typeof vibrate === 'function') {
+                vibrate(30);
+            }
+        });
+    });
+    
+    // Инициализируем табы
+    initLeaderboardTabs();
+    
+    // Загружаем данные рейтинга
+    fetchLeaderboardData();
+    
+    console.log("Таблица лидеров инициализирована");
+}
+
+// ========== УЛУЧШЕНИЕ ИНТЕГРАЦИИ С TELEGRAM ==========
+
+// Улучшенная интеграция с Telegram WebApp
+function initTelegramIntegration() {
+    console.log("Инициализация интеграции с Telegram");
+    
+    // Переменная для хранения экземпляра WebApp
+    let tg = null;
+    
+    // Проверяем доступность Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        tg = window.Telegram.WebApp;
+        
+        // Сообщаем Telegram, что приложение готово
+        tg.ready();
+        
+        // Расширяем на весь экран
+        tg.expand();
+        
+        // Устанавливаем тему в соответствии с темой Telegram
+        const theme = tg.colorScheme || 'light';
+        document.documentElement.classList.toggle('dark-theme', theme === 'dark');
+        
+        // Получаем данные пользователя
+        const user = tg.initDataUnsafe?.user;
+        if (user) {
+            console.log("Получены данные пользователя из Telegram:", user.first_name);
+            
+            // Сохраняем ID пользователя для использования в игре
+            if (!gameState.userId) {
+                gameState.userId = user.id;
+            }
+            
+            // Обновляем имя пользователя в профиле
+            const userNameElement = document.getElementById('user-name');
+            if (userNameElement && user.first_name) {
+                userNameElement.textContent = user.first_name;
+            }
+        }
+        
+        // Подписываемся на события смены темы
+        tg.onEvent('themeChanged', () => {
+            const newTheme = tg.colorScheme;
+            document.documentElement.classList.toggle('dark-theme', newTheme === 'dark');
+            console.log("Тема изменена на:", newTheme);
+        });
+        
+        // Подписываемся на событие сворачивания приложения
+        tg.onEvent('viewportChanged', () => {
+            // Сохраняем данные при сворачивании
+            if (!tg.isExpanded) {
+                saveGameState();
+            }
+        });
+        
+        // Сохраняем ссылку на WebApp для использования в других функциях
+        window.tg = tg;
+        
+        console.log("Интеграция с Telegram WebApp успешно инициализирована");
+    } else {
+        console.warn("Telegram WebApp недоступен, используем режим отладки");
+        initDebugMode();
+    }
+}
+
+// ========== ОБЩИЕ ИСПРАВЛЕНИЯ И ИНТЕГРАЦИЯ ==========
+
+// Запуск всех инициализаций в правильном порядке
+function initGame() {
+    console.log("Инициализация игры");
+    
+    // Скрываем экран загрузки
+    const splashScreen = document.getElementById('splash-screen');
+    if (splashScreen) {
+        // Делаем анимированный индикатор загрузки
+        showLoadingProgress(0);
+    }
+    
+    try {
+        // Инициализация интеграции с Telegram
+        initTelegramIntegration();
+        showLoadingProgress(10);
+        
+        // Загрузка настроек
+        if (typeof loadSettings === 'function') {
+            loadSettings();
+        }
+        showLoadingProgress(20);
+        
+        // Загрузка прогресса игры
+        loadGameState();
+        showLoadingProgress(30);
+        
+        // Инициализация системы сохранения
+        initSaveSystem();
+        showLoadingProgress(40);
+        
+        // Инициализация пользовательского интерфейса
+        if (typeof initializeUI === 'function') {
+            initializeUI();
+        }
+        showLoadingProgress(50);
+        
+        // Инициализация профиля
+        initProfile();
+        showLoadingProgress(60);
+        
+        // Инициализация заданий
+        initTasks();
+        showLoadingProgress(70);
+        
+        // Инициализация боксов
+        initBoxHandlers();
+        showLoadingProgress(80);
+        
+        // Инициализация таблицы лидеров
+        initLeaderboard();
+        showLoadingProgress(90);
+        
+        // Завершение инициализации
+        finalizeInitialization();
+        showLoadingProgress(100);
+        
+        console.log("Игра успешно инициализирована");
+        
+        // Скрываем экран загрузки через небольшую задержку
+        setTimeout(() => {
+            if (splashScreen) {
+                splashScreen.style.opacity = '0';
+                setTimeout(() => {
+                    splashScreen.style.display = 'none';
+                    
+                    // Показываем главный экран
+                    showSection('main-screen');
+                }, 500);
+            }
+        }, 1000);
+        
+        return true;
+    } catch (error) {
+        console.error("Ошибка при инициализации игры:", error);
+        
+        // Даже в случае ошибки скрываем экран загрузки
+        if (splashScreen) {
+            splashScreen.style.opacity = '0';
+            setTimeout(() => {
+                splashScreen.style.display = 'none';
+                
+                // Показываем главный экран
+                showSection('main-screen');
+            }, 500);
+        }
+        
+        // Показываем сообщение об ошибке
+        showErrorMessage("Произошла ошибка при загрузке. Некоторые функции могут быть недоступны.");
+        
+        return false;
+    }
+}
+
