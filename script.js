@@ -6175,3 +6175,421 @@ function initGame() {
     }
 }
 
+// Game State Management
+const GameStateManager = {
+    state: {
+        coins: 0,
+        gems: 0,
+        level: 1,
+        experience: 0,
+        lastDailyReward: null,
+        lastLoginDate: null,
+        achievements: {},
+        tasks: {},
+        boxes: {
+            common: 0,
+            rare: 0,
+            epic: 0,
+            legendary: 0
+        },
+        inventory: [],
+        stats: {
+            boxesOpened: 0,
+            minionsCollected: 0,
+            tasksCompleted: 0,
+            achievementsUnlocked: 0
+        }
+    },
+
+    init() {
+        this.loadState();
+        this.setupAutoSave();
+        this.checkDailyLogin();
+    },
+
+    loadState() {
+        try {
+            const savedState = localStorage.getItem('minionGameState');
+            if (savedState) {
+                const parsedState = JSON.parse(savedState);
+                this.state = { ...this.state, ...parsedState };
+            }
+        } catch (error) {
+            console.error('Error loading game state:', error);
+        }
+    },
+
+    saveState() {
+        try {
+            localStorage.setItem('minionGameState', JSON.stringify(this.state));
+        } catch (error) {
+            console.error('Error saving game state:', error);
+        }
+    },
+
+    setupAutoSave() {
+        setInterval(() => this.saveState(), 30000); // Auto-save every 30 seconds
+        window.addEventListener('beforeunload', () => this.saveState());
+    },
+
+    updateResource(type, amount) {
+        if (type === 'coins') {
+            this.state.coins += amount;
+            elements.coinsCount.textContent = this.state.coins.toLocaleString();
+        } else if (type === 'gems') {
+            this.state.gems += amount;
+            elements.gemsCount.textContent = this.state.gems.toLocaleString();
+        }
+        this.saveState();
+    },
+
+    checkDailyLogin() {
+        const today = new Date().toDateString();
+        if (this.state.lastLoginDate !== today) {
+            this.state.lastLoginDate = today;
+            this.saveState();
+            return true;
+        }
+        return false;
+    },
+
+    canClaimDailyReward() {
+        if (!this.state.lastDailyReward) return true;
+        const lastReward = new Date(this.state.lastDailyReward);
+        const now = new Date();
+        return lastReward.getDate() !== now.getDate() || 
+               lastReward.getMonth() !== now.getMonth() || 
+               lastReward.getFullYear() !== now.getFullYear();
+    },
+
+    claimDailyReward() {
+        if (!this.canClaimDailyReward()) return false;
+        
+        this.state.lastDailyReward = new Date().toISOString();
+        this.updateResource('coins', 1000);
+        this.updateResource('gems', 50);
+        this.saveState();
+        return true;
+    },
+
+    updateStats(statType, amount = 1) {
+        if (this.state.stats[statType] !== undefined) {
+            this.state.stats[statType] += amount;
+            this.saveState();
+        }
+    }
+};
+
+// ... existing code ...
+
+// UI Management
+const UIManager = {
+    elements: {},
+
+    init() {
+        this.cacheElements();
+        this.setupEventListeners();
+        this.applyTheme();
+    },
+
+    cacheElements() {
+        this.elements = {
+            coinsCount: document.getElementById('coinsCount'),
+            gemsCount: document.getElementById('gemsCount'),
+            levelText: document.getElementById('levelText'),
+            experienceBar: document.getElementById('experienceBar'),
+            minionContainer: document.getElementById('minionContainer'),
+            boxContainer: document.getElementById('boxContainer'),
+            achievementContainer: document.getElementById('achievementContainer'),
+            taskContainer: document.getElementById('taskContainer'),
+            leaderboardContainer: document.getElementById('leaderboardContainer'),
+            profileContainer: document.getElementById('profileContainer')
+        };
+    },
+
+    setupEventListeners() {
+        // Box click handlers
+        Object.keys(this.elements.boxContainer.children).forEach(boxType => {
+            this.elements.boxContainer.children[boxType].addEventListener('click', () => {
+                this.handleBoxClick(boxType);
+            });
+        });
+
+        // Profile button handler
+        document.getElementById('profileButton').addEventListener('click', () => {
+            this.toggleProfile();
+        });
+
+        // Leaderboard button handler
+        document.getElementById('leaderboardButton').addEventListener('click', () => {
+            this.toggleLeaderboard();
+        });
+    },
+
+    applyTheme() {
+        const isDark = document.body.classList.contains('dark-theme');
+        document.body.style.backgroundColor = isDark ? '#1a1a1a' : '#ffffff';
+        document.body.style.color = isDark ? '#ffffff' : '#000000';
+    },
+
+    updateResourceDisplay(type, value) {
+        if (type === 'coins') {
+            this.elements.coinsCount.textContent = value.toLocaleString();
+        } else if (type === 'gems') {
+            this.elements.gemsCount.textContent = value.toLocaleString();
+        }
+    },
+
+    updateExperience(level, experience, maxExperience) {
+        this.elements.levelText.textContent = `Level ${level}`;
+        const percentage = (experience / maxExperience) * 100;
+        this.elements.experienceBar.style.width = `${percentage}%`;
+    },
+
+    showAnimation(element, animationClass) {
+        element.classList.add(animationClass);
+        element.addEventListener('animationend', () => {
+            element.classList.remove(animationClass);
+        }, { once: true });
+    },
+
+    toggleProfile() {
+        const isVisible = this.elements.profileContainer.style.display === 'block';
+        this.elements.profileContainer.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible) {
+            this.updateProfileStats();
+        }
+    },
+
+    toggleLeaderboard() {
+        const isVisible = this.elements.leaderboardContainer.style.display === 'block';
+        this.elements.leaderboardContainer.style.display = isVisible ? 'none' : 'block';
+        if (!isVisible) {
+            LeaderboardManager.requestLeaderboardData();
+        }
+    },
+
+    updateProfileStats() {
+        const stats = GameStateManager.state.stats;
+        document.getElementById('boxesOpenedCount').textContent = stats.boxesOpened;
+        document.getElementById('minionsCollectedCount').textContent = stats.minionsCollected;
+        document.getElementById('tasksCompletedCount').textContent = stats.tasksCompleted;
+        document.getElementById('achievementsUnlockedCount').textContent = stats.achievementsUnlocked;
+    }
+};
+
+// ... existing code ...
+
+// Achievement Management
+const AchievementManager = {
+    achievements: {
+        firstMinion: {
+            id: 'firstMinion',
+            title: 'First Minion',
+            description: 'Collect your first minion',
+            reward: 100,
+            unlocked: false
+        },
+        boxCollector: {
+            id: 'boxCollector',
+            title: 'Box Collector',
+            description: 'Open 10 boxes',
+            reward: 500,
+            unlocked: false
+        },
+        // ... other achievements ...
+    },
+
+    init() {
+        this.loadAchievements();
+        this.checkAchievements();
+    },
+
+    loadAchievements() {
+        const savedAchievements = localStorage.getItem('achievements');
+        if (savedAchievements) {
+            const parsed = JSON.parse(savedAchievements);
+            this.achievements = { ...this.achievements, ...parsed };
+        }
+    },
+
+    saveAchievements() {
+        localStorage.setItem('achievements', JSON.stringify(this.achievements));
+    },
+
+    checkAchievements() {
+        const stats = GameStateManager.state.stats;
+        
+        // Check box collector achievement
+        if (stats.boxesOpened >= 10 && !this.achievements.boxCollector.unlocked) {
+            this.unlockAchievement('boxCollector');
+        }
+
+        // Check minion collector achievement
+        if (stats.minionsCollected >= 5 && !this.achievements.firstMinion.unlocked) {
+            this.unlockAchievement('firstMinion');
+        }
+
+        // ... other achievement checks ...
+    },
+
+    unlockAchievement(achievementId) {
+        if (this.achievements[achievementId] && !this.achievements[achievementId].unlocked) {
+            this.achievements[achievementId].unlocked = true;
+            GameStateManager.updateResource('coins', this.achievements[achievementId].reward);
+            GameStateManager.updateStats('achievementsUnlocked');
+            this.saveAchievements();
+            this.showAchievementNotification(achievementId);
+        }
+    },
+
+    showAchievementNotification(achievementId) {
+        const achievement = this.achievements[achievementId];
+        const notification = document.createElement('div');
+        notification.className = 'achievement-notification';
+        notification.innerHTML = `
+            <h3>${achievement.title}</h3>
+            <p>${achievement.description}</p>
+            <p>Reward: ${achievement.reward} coins</p>
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+};
+
+// Task Management
+const TaskManager = {
+    tasks: {
+        openBoxes: {
+            id: 'openBoxes',
+            title: 'Open Boxes',
+            description: 'Open 5 boxes',
+            target: 5,
+            progress: 0,
+            reward: 200,
+            completed: false
+        },
+        collectMinions: {
+            id: 'collectMinions',
+            title: 'Collect Minions',
+            description: 'Collect 3 minions',
+            target: 3,
+            progress: 0,
+            reward: 300,
+            completed: false
+        },
+        // ... other tasks ...
+    },
+
+    init() {
+        this.loadTasks();
+        this.updateTaskDisplay();
+    },
+
+    loadTasks() {
+        const savedTasks = localStorage.getItem('tasks');
+        if (savedTasks) {
+            const parsed = JSON.parse(savedTasks);
+            this.tasks = { ...this.tasks, ...parsed };
+        }
+    },
+
+    saveTasks() {
+        localStorage.setItem('tasks', JSON.stringify(this.tasks));
+    },
+
+    updateTaskProgress(taskId, progress) {
+        if (this.tasks[taskId] && !this.tasks[taskId].completed) {
+            this.tasks[taskId].progress = progress;
+            if (this.tasks[taskId].progress >= this.tasks[taskId].target) {
+                this.completeTask(taskId);
+            }
+            this.saveTasks();
+            this.updateTaskDisplay();
+        }
+    },
+
+    completeTask(taskId) {
+        if (this.tasks[taskId] && !this.tasks[taskId].completed) {
+            this.tasks[taskId].completed = true;
+            GameStateManager.updateResource('coins', this.tasks[taskId].reward);
+            GameStateManager.updateStats('tasksCompleted');
+            this.saveTasks();
+            this.showTaskCompletionNotification(taskId);
+        }
+    },
+
+    updateTaskDisplay() {
+        const container = UIManager.elements.taskContainer;
+        container.innerHTML = '';
+        
+        Object.values(this.tasks).forEach(task => {
+            if (!task.completed) {
+                const taskElement = document.createElement('div');
+                taskElement.className = 'task';
+                taskElement.innerHTML = `
+                    <h3>${task.title}</h3>
+                    <p>${task.description}</p>
+                    <div class="progress-bar">
+                        <div class="progress" style="width: ${(task.progress / task.target) * 100}%"></div>
+                    </div>
+                    <p>Progress: ${task.progress}/${task.target}</p>
+                    <p>Reward: ${task.reward} coins</p>
+                `;
+                container.appendChild(taskElement);
+            }
+        });
+    },
+
+    showTaskCompletionNotification(taskId) {
+        const task = this.tasks[taskId];
+        const notification = document.createElement('div');
+        notification.className = 'task-notification';
+        notification.innerHTML = `
+            <h3>${task.title} Completed!</h3>
+            <p>Reward: ${task.reward} coins</p>
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+};
+
+// ... existing code ...
+
+// Initialize the game
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize core systems
+    GameStateManager.init();
+    UIManager.init();
+    AchievementManager.init();
+    TaskManager.init();
+    LeaderboardManager.init();
+
+    // Initialize Telegram integration
+    if (window.Telegram.WebApp) {
+        TagManager.init();
+    }
+
+    // Setup debug mode if needed
+    if (process.env.NODE_ENV === 'development') {
+        setupDebugMode();
+    }
+});
+
+// Debug mode setup
+function setupDebugMode() {
+    window.debug = {
+        addCoins: (amount) => GameStateManager.updateResource('coins', amount),
+        addGems: (amount) => GameStateManager.updateResource('gems', amount),
+        resetProgress: () => {
+            localStorage.clear();
+            location.reload();
+        },
+        unlockAll: () => {
+            Object.keys(AchievementManager.achievements).forEach(id => {
+                AchievementManager.unlockAchievement(id);
+            });
+        }
+    };
+}
+
